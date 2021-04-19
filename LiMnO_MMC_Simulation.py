@@ -1,5 +1,5 @@
 """
-Simulation 2.0 simulates the lithium intercalation in a lithium manganese oxide cathode using Monte Carlo simulation methods.
+Simulates the lithium intercalation in a lithium manganese oxide cathode using Monte Carlo simulation methods.
 """
 
 import numpy as np
@@ -32,7 +32,7 @@ class Atom:
         this is used to calculate the relative change in H for a given configuration change.
     """
 
-    def __init__(self, x_index, y_index, z_index, grid_length, mu):
+    def __init__(self, x_index, y_index, z_index, grid_length):
         """
         Parameters
         ----------
@@ -44,8 +44,6 @@ class Atom:
             This is the z index in the grid/lattice
         :param grid_length:
             This is the number of unit cells per side of a cube that each contains 8 Li atoms.
-        :param mu:
-            This is the chemical potential
         """
 
         self.x_index = x_index
@@ -55,7 +53,6 @@ class Atom:
         self.j1 = 37.5e-3  # Attraction parameter in eV of nearest
         self.j2 = -4.0e-3  # Attraction parameter in eV of next nearest
         self.eps = 4.12  # In eV
-        self.mu = mu
 
         self.xl = grid_length  # Number of atoms in the x axis
         self.yl = grid_length * 2  # Number of atoms in the y axis
@@ -169,7 +166,7 @@ class Atom:
 
         self.nnn = np.array(self.temp_neighbours)
 
-    def node_hamiltonian(self):
+    def node_hamiltonian(self, mu):
         sum_of_nn = 0
         sum_of_nnn = 0
         nn_term = 0
@@ -183,12 +180,12 @@ class Atom:
             sum_of_nnn += (self.c * nnn.c)
         nnn_term = sum_of_nnn * self.j2
 
-        chemical_potential_term = - self.c * (self.eps + self.mu)
+        chemical_potential_term = - self.c * (self.eps + mu)
 
         return nn_term + nnn_term + chemical_potential_term  # This is the hamiltonian of 1 atom
 
 
-def monte_carlo(grid, grid_length, kb, T):
+def monte_carlo(grid, grid_length, kb, T, mu):
     """
     This method contains the metropolis monte carlo algorithm and is classed as 1 monte carlo step.
 
@@ -196,14 +193,15 @@ def monte_carlo(grid, grid_length, kb, T):
     :param grid_length: Number of unit cells per side
     :param kb: Boltzamnn constant
     :param T: Temperature in K
+    :param mu: Chemical potential
     :return: The new grid with 1 or 0 changes.
     """
     rand_atom = grid[random.randint(0, grid_length-1)][random.randint(0, (grid_length * 2) - 1)][random.randint(0, (grid_length * 4) -1)]
 
-    current_h = rand_atom.node_hamiltonian()
+    current_h = rand_atom.node_hamiltonian(mu)
     rand_atom.swap_c()
-    new_h = rand_atom.node_hamiltonian()
-    delta_h = current_h - new_h  # ? could be the other way around
+    new_h = rand_atom.node_hamiltonian(mu)
+    delta_h = current_h - new_h  # could be the other way around?
     if delta_h < 0:
         # Only keep the swap if a random float between 0 and 1 is <= P
         rand_p = random.random()  # Generates a random number between 0 and 1
@@ -215,7 +213,7 @@ def monte_carlo(grid, grid_length, kb, T):
     return grid
 
 
-def get_grid(grid_length, mu):
+def get_grid(grid_length):
     """
     Get_grid() returns a 3 dimensional array of 'Atom' objects and is representative of the lattice structure.
     """
@@ -225,7 +223,7 @@ def get_grid(grid_length, mu):
     for z in range(grid_length*4):
         for y in range(grid_length*2):
             for x in range(grid_length):
-                grid[x][y][z] = Atom(x, y, z, grid_length, mu)
+                grid[x][y][z] = Atom(x, y, z, grid_length)
 
     # Initialise the neighbours for all atoms
     for z in range(grid_length*4):
@@ -299,16 +297,21 @@ if __name__ == '__main__':
     kb = 8.617e-5  # Boltzmann constant in eV/K
     eps = 4.12  # in eV
 
-    grid = get_grid(grid_length, mu)  # Returns a numpy 3d array [x][y][z] of each primitive cell.
+    grid = get_grid(grid_length)  # Returns a numpy 3d array [x][y][z] of each primitive cell.
 
-    print("Lattice hamiltonian: ", lattice_hamiltonian(grid, grid_length, eps, mu))
-
-    number_of_mcs = 1000000
+    number_of_mcs = 100000
     sample_rate = 10000
+    start_mu = -4.3  # Start chemical potential
+    step_size_mu = 0.02  # Step size for chemical potential
 
-    for i in range(number_of_mcs):
-        monte_carlo(grid, grid_length, kb, T)
-        if i % sample_rate == 0:
-            get_mole_fraction(grid, grid_length)
+    while start_mu < -3.88:
 
-    print("Lattice hamiltonian: ", lattice_hamiltonian(grid, grid_length, eps, mu))
+        print("Chemical potential: ", start_mu)
+        for i in range(number_of_mcs):
+            monte_carlo(grid, grid_length, kb, T, start_mu)
+
+        get_mole_fraction(grid, grid_length)  # Prints the final mole fraction
+
+        print("----------")
+        start_mu += step_size_mu
+
