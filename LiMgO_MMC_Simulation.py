@@ -1,5 +1,5 @@
 """
-Simulation 2.0 simulates the lithium intercalation in a lithium manganese oxide cathode using Monte Carlo simulation methods.
+Simulates the lithium intercalation in a lithium manganese oxide cathode using Monte Carlo simulation methods.
 """
 
 import numpy as np
