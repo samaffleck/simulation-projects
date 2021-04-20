@@ -152,6 +152,7 @@ class Atom:
                 self.temp_neighbours.append(grid[vector[0]][vector[1]][vector[2]])
         except Exception as e:
             print(e)
+            print("Error occurred at index: ", self.x_index, self.y_index, self.z_index)
 
         self.neighbours = np.array(self.temp_neighbours)
 
@@ -180,9 +181,9 @@ class Atom:
             sum_of_nnn += (self.c * nnn.c)
         nnn_term = sum_of_nnn * self.j2
 
-        chemical_potential_term = - self.c * (self.eps + mu)
+        self.chemical_potential_term = - self.c * (self.eps + mu)
 
-        return nn_term + nnn_term + chemical_potential_term  # This is the hamiltonian of 1 atom
+        return nn_term + nnn_term + self.chemical_potential_term  # This is the hamiltonian of 1 atom
 
 
 def monte_carlo(grid, grid_length, kb, T, mu):
@@ -217,7 +218,9 @@ def get_grid(grid_length):
     """
     Get_grid() returns a 3 dimensional array of 'Atom' objects and is representative of the lattice structure.
     """
-    grid = np.zeros((grid_length, grid_length*2, grid_length*4), dtype=Atom)  # The 3 dimensional array that will store each Li atom with shape (1, 2, 4)
+
+    # The 3 dimensional array that will store each Li atom with shape (1, 2, 4)
+    grid = np.zeros((grid_length, grid_length*2, grid_length*4), dtype=Atom)
 
     # Initialise the grid
     for z in range(grid_length*4):
@@ -270,6 +273,25 @@ def lattice_hamiltonian(grid, grid_length, eps, mu):
     return hamiltonian
 
 
+def get_internal_energy(grid, grid_length, eps):
+    """
+        Calculates the total internal energy
+
+        :param grid: 3D numpy array containing the object atom.
+        :param grid_length: Number of unit cells
+        :param eps: Constant
+        :return: internal energy (U) of the whole grid
+        """
+
+    internal_energy = 0
+    for z in range(grid_length * 4):
+        for y in range(grid_length * 2):
+            for x in range(grid_length):
+                internal_energy += (grid[x][y][z].node_hamiltonian() - grid[x][y][z].chemical_potential_term - eps * grid[x][y][z].c)
+
+    return internal_energy
+
+
 def get_mole_fraction(grid, grid_length):
     """
     Returns the mole fraction of lithium atoms in each sub lattice.
@@ -286,8 +308,13 @@ def get_mole_fraction(grid, grid_length):
                     counter[1][0] += grid[x][y][z].c
                     counter[1][1] += 1
 
-    print("Li mole fraction in sub lattice 1: ", counter[0][0]/counter[0][1], "Li mole fraction in sub lattice 2: ",
+    total_num_of_li = counter[1][0] + counter[0][0]
+    total_num_of_sites = counter[1][1] + counter[0][1]
+    total_mole_fraction = total_num_of_li/total_num_of_sites
+    print("Li mole fraction in sub lattice 1:", counter[0][0]/counter[0][1], " Li mole fraction in sub lattice 2: ",
           counter[1][0]/counter[1][1])
+    print("Total Li atoms:", total_num_of_li, " Total sites:", total_num_of_sites, " Total mole fraction:",
+          total_mole_fraction)
 
 
 if __name__ == '__main__':
@@ -302,7 +329,7 @@ if __name__ == '__main__':
     number_of_mcs = 100000
     sample_rate = 10000
     start_mu = -4.3  # Start chemical potential
-    step_size_mu = 0.02  # Step size for chemical potential
+    step_size_mu = 0.01  # Step size for chemical potential
 
     while start_mu < -3.88:
 
