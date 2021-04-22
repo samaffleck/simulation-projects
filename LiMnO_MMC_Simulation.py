@@ -7,6 +7,7 @@ import random
 import math
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
 
 class Atom:
@@ -72,18 +73,24 @@ class Atom:
         # Each sub lattice has 2 potential vectors that describe the index of their nearest neighbours.
         # The are similar vectors and the value self.i accounts for this difference between the vectors.
         self.nn_vector1 = np.array([[self.x_index, self.y_index, oor_index(self.z_index - self.i, self.zl)],
-                                    [oor_index(self.x_index + self.i, self.xl), oor_index(self.y_index + self.i, self.yl), oor_index(self.z_index - self.i, self.zl)],
-                                    [oor_index(self.x_index + self.i, self.xl), self.y_index, oor_index(self.z_index + self.i, self.zl)],
-                                    [self.x_index, oor_index(self.y_index + self.i, self.yl), oor_index(self.z_index + self.i, self.zl)]])
+                                    [oor_index(self.x_index + self.i, self.xl),
+                                     oor_index(self.y_index + self.i, self.yl),
+                                     oor_index(self.z_index - self.i, self.zl)],
+                                    [oor_index(self.x_index + self.i, self.xl), self.y_index,
+                                     oor_index(self.z_index + self.i, self.zl)],
+                                    [self.x_index, oor_index(self.y_index + self.i, self.yl),
+                                     oor_index(self.z_index + self.i, self.zl)]])
 
         self.nn_vector2 = np.array([[self.x_index, self.y_index, oor_index(self.z_index + self.i, self.zl)],
                                     [self.x_index, self.y_index, oor_index(self.z_index - self.i, self.zl)],
-                                    [self.x_index, oor_index(self.y_index + self.i, self.yl), oor_index(self.z_index - self.i, self.zl)],
-                                    [self.x_index, oor_index(self.y_index + self.i, self.yl), oor_index(self.z_index + self.i, self.zl)]])
+                                    [self.x_index, oor_index(self.y_index + self.i, self.yl),
+                                     oor_index(self.z_index - self.i, self.zl)],
+                                    [self.x_index, oor_index(self.y_index + self.i, self.yl),
+                                     oor_index(self.z_index + self.i, self.zl)]])
 
         if self.z_index % 2 == 0:
             # Sub lattice 1
-            if (self.y_index + (self.z_index/2)) % 2 == 0:
+            if (self.y_index + (self.z_index / 2)) % 2 == 0:
                 self.nn_vector = self.nn_vector1
                 self.x_offset = 0
                 self.i2 = -1
@@ -105,11 +112,14 @@ class Atom:
         # This vector contains the relative positions of all 12 next nearest neighbours.
         self.nnn_vector = np.array([[self.x_index, oor_index(self.y_index - 1, self.yl), self.z_index],
                                     [self.x_index, oor_index(self.y_index + 1, self.yl), self.z_index],
-                                    [oor_index(self.x_index + self.i2, self.xl), oor_index(self.y_index + 1, self.yl), self.z_index],
+                                    [oor_index(self.x_index + self.i2, self.xl), oor_index(self.y_index + 1, self.yl),
+                                     self.z_index],
                                     [oor_index(self.x_index + self.i2, self.xl), self.y_index - 1, self.z_index],
-                                    [oor_index(self.x_index + self.i2, self.xl), self.y_index, oor_index(self.z_index + 2, self.zl)],
+                                    [oor_index(self.x_index + self.i2, self.xl), self.y_index,
+                                     oor_index(self.z_index + 2, self.zl)],
                                     [self.x_index, self.y_index, oor_index(self.z_index + 2, self.zl)],
-                                    [self.x_index, oor_index(self.y_index + 1, self.yl), oor_index(self.z_index + 2, self.zl)],
+                                    [self.x_index, oor_index(self.y_index + 1, self.yl),
+                                     oor_index(self.z_index + 2, self.zl)],
                                     [self.x_index, self.y_index - 1, oor_index(self.z_index + 2, self.zl)],
                                     [oor_index(self.x_index + self.i2, self.xl), self.y_index, self.z_index - 2],
                                     [self.x_index, self.y_index, self.z_index - 2],
@@ -199,7 +209,8 @@ def monte_carlo(grid, grid_length, kb, T, mu):
     :param mu: Chemical potential
     :return: The new grid with 1 or 0 changes.
     """
-    rand_atom = grid[random.randint(0, grid_length-1)][random.randint(0, (grid_length * 2) - 1)][random.randint(0, (grid_length * 4) -1)]
+    rand_atom = grid[random.randint(0, grid_length - 1)][random.randint(0, (grid_length * 2) - 1)][
+        random.randint(0, (grid_length * 4) - 1)]
 
     current_h = rand_atom.node_hamiltonian(mu)
     rand_atom.swap_c()
@@ -222,17 +233,18 @@ def get_grid(grid_length):
     """
 
     # The 3 dimensional array that will store each Li atom with shape (1, 2, 4)
-    grid = np.zeros((grid_length, grid_length*2, grid_length*4), dtype=Atom)
+    grid = np.zeros((grid_length, grid_length * 2, grid_length * 4), dtype=Atom)
 
-    # Initialise the grid
-    for z in range(grid_length*4):
-        for y in range(grid_length*2):
+    # Initialise the grid.
+    for z in range(
+            grid_length * 4):  # Even z layers/indexes are in sub lattice 1 and odd z layers are in sub lattice 2.
+        for y in range(grid_length * 2):
             for x in range(grid_length):
                 grid[x][y][z] = Atom(x, y, z, grid_length)
 
     # Initialise the neighbours for all atoms
-    for z in range(grid_length*4):
-        for y in range(grid_length*2):
+    for z in range(grid_length * 4):
+        for y in range(grid_length * 2):
             for x in range(grid_length):
                 grid[x][y][z].get_nn(grid)
                 grid[x][y][z].get_nnn(grid)
@@ -290,16 +302,17 @@ def get_internal_energy(grid, grid_length, eps, mu):
     for z in range(grid_length * 4):
         for y in range(grid_length * 2):
             for x in range(grid_length):
-                internal_energy += (grid[x][y][z].node_hamiltonian(mu) - grid[x][y][z].chemical_potential_term - eps * grid[x][y][z].c)
+                internal_energy += (grid[x][y][z].node_hamiltonian(mu) - grid[x][y][z].chemical_potential_term - eps *
+                                    grid[x][y][z].c)
                 occupancy += grid[x][y][z].c
 
     return internal_energy, occupancy
 
 
 def thermal_fluctuations(grid, grid_length, kb, T, mu, eps):
-    sample_frequency = 1000
-    total_iterations = 10000
-    total_rows = total_iterations/sample_frequency
+    sample_frequency = 20
+    total_iterations = 1000
+    total_rows = total_iterations / sample_frequency
     data_array = np.zeros((int(total_rows), 4))  # Columns for U, N, UN and N^2.
     row_count = 0
 
@@ -308,7 +321,7 @@ def thermal_fluctuations(grid, grid_length, kb, T, mu, eps):
         if i % sample_frequency == 0:
             internal_energy, occupancy = get_internal_energy(grid, grid_length, eps, mu)
             internal_energy_times_occupancy = internal_energy * occupancy
-            occupancy_squared = occupancy**2
+            occupancy_squared = occupancy ** 2
             data_array[row_count, 0] = internal_energy
             data_array[row_count, 1] = occupancy
             data_array[row_count, 2] = internal_energy_times_occupancy
@@ -319,7 +332,7 @@ def thermal_fluctuations(grid, grid_length, kb, T, mu, eps):
     mean_n = df["N"].mean()
     mean_un = df["UN"].mean()
     mean_nn = df["NN"].mean()
-    varience = mean_nn - mean_n**2
+    varience = mean_nn - mean_n ** 2
     cov_un = mean_un - (mean_u * mean_n)
 
     return varience, cov_un
@@ -343,13 +356,13 @@ def get_mole_fraction(grid, grid_length):
 
     total_num_of_li = counter[1][0] + counter[0][0]
     total_num_of_sites = counter[1][1] + counter[0][1]
-    total_mole_fraction = total_num_of_li/total_num_of_sites
-    print("Li mole fraction in sub lattice 1:", counter[0][0]/counter[0][1], " Li mole fraction in sub lattice 2: ",
-          counter[1][0]/counter[1][1])
+    total_mole_fraction = total_num_of_li / total_num_of_sites
+    print("Li mole fraction in sub lattice 1:", counter[0][0] / counter[0][1], " Li mole fraction in sub lattice 2: ",
+          counter[1][0] / counter[1][1])
     print("Total Li atoms:", total_num_of_li, " Total sites:", total_num_of_sites, " Total mole fraction:",
           total_mole_fraction)
 
-    return total_mole_fraction, counter[0][0]/counter[0][1], counter[1][0]/counter[1][1]
+    return total_mole_fraction, counter[0][0] / counter[0][1], counter[1][0] / counter[1][1]
 
 
 if __name__ == '__main__':
@@ -365,16 +378,17 @@ if __name__ == '__main__':
     start_mu = -4.3  # Start chemical potential
     end_mu = - 3.88
     step_size_mu = 0.01  # Step size for chemical potential
-    rows = math.ceil((end_mu - start_mu)/step_size_mu)
+    rows = math.ceil((end_mu - start_mu) / step_size_mu)
     row_count = 0
     results_array = np.zeros((rows + 1, 5))  # Columns for delta S, x, mu, sl1 mole fraction, sl2 mole fraction
 
-    for chem in np.arange(start_mu, end_mu+step_size_mu, step_size_mu):
+    for chem in np.arange(start_mu, end_mu + step_size_mu, step_size_mu):
         print("Chemical potential: ", chem)
         for i in range(number_of_mcs):
             grid = monte_carlo(grid, grid_length, kb, T, chem)
 
-        total_mole_fraction, sl1_mole_fraction, sl2_mole_fraction = get_mole_fraction(grid, grid_length)  # Prints the final mole fraction
+        total_mole_fraction, sl1_mole_fraction, sl2_mole_fraction = get_mole_fraction(grid,
+                                                                                      grid_length)  # Prints the final mole fraction
 
         var, cov = thermal_fluctuations(grid, grid_length, kb, T, chem,
                                         eps)  # Prints the data frame for the values of U and N
@@ -391,12 +405,17 @@ if __name__ == '__main__':
     results_dataframe = pd.DataFrame(data=results_array, columns=["Delta Entropy", "Mole Fraction of Li",
                                                                   "Chemical potential", "Mole fraction sub lattice 1",
                                                                   "Mole fraction sub lattice 2"])
-    results_dataframe.to_csv(r'C:\Users\samaf\Desktop\SimulationCode\simulation-projects\LMO_data_frame_results.csv', index=False)
+
+    cwd = os.getcwd()
+    path = cwd + "/monte_carlo_results.csv"
+    results_dataframe.to_csv(path, index=False)
 
     fig, axes = plt.subplots(nrows=2, ncols=2)
     results_dataframe.plot(kind='scatter', ax=axes[0, 0], x='Mole Fraction of Li', y='Chemical potential', color='red')
     results_dataframe.plot(kind='scatter', ax=axes[0, 1], x='Mole Fraction of Li', y='Delta Entropy', color='red')
-    results_dataframe.plot(kind='scatter', ax=axes[1, 0], x='Mole Fraction of Li', y='Mole fraction sub lattice 1', color='red')
-    results_dataframe.plot(kind='scatter', ax=axes[1, 0], x='Mole Fraction of Li', y='Mole fraction sub lattice 2', color='blue')
+    ax1 = results_dataframe.plot(kind='scatter', ax=axes[1, 0], x='Mole Fraction of Li',
+                                 y='Mole fraction sub lattice 1', color='red')
+    results_dataframe.plot(kind='scatter', ax=ax1, x='Mole Fraction of Li', y='Mole fraction sub lattice 2',
+                           color='blue')
 
     plt.show()
