@@ -5,6 +5,8 @@ Simulates the lithium intercalation in a lithium manganese oxide cathode using M
 import numpy as np
 import random
 import math
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 class Atom:
@@ -273,7 +275,7 @@ def lattice_hamiltonian(grid, grid_length, eps, mu):
     return hamiltonian
 
 
-def get_internal_energy(grid, grid_length, eps):
+def get_internal_energy(grid, grid_length, eps, mu):
     """
         Calculates the total internal energy
 
@@ -284,12 +286,43 @@ def get_internal_energy(grid, grid_length, eps):
         """
 
     internal_energy = 0
+    occupancy = 0
     for z in range(grid_length * 4):
         for y in range(grid_length * 2):
             for x in range(grid_length):
-                internal_energy += (grid[x][y][z].node_hamiltonian() - grid[x][y][z].chemical_potential_term - eps * grid[x][y][z].c)
+                internal_energy += (grid[x][y][z].node_hamiltonian(mu) - grid[x][y][z].chemical_potential_term - eps * grid[x][y][z].c)
+                occupancy += grid[x][y][z].c
 
-    return internal_energy
+    return internal_energy, occupancy
+
+
+def thermal_fluctuations(grid, grid_length, kb, T, mu, eps):
+    sample_frequency = 1000
+    total_iterations = 10000
+    total_rows = total_iterations/sample_frequency
+    data_array = np.zeros((int(total_rows), 4))  # Columns for U, N, UN and N^2.
+    row_count = 0
+
+    for i in range(total_iterations):
+        monte_carlo(grid, grid_length, kb, T, mu)
+        if i % sample_frequency == 0:
+            internal_energy, occupancy = get_internal_energy(grid, grid_length, eps, mu)
+            internal_energy_times_occupancy = internal_energy * occupancy
+            occupancy_squared = occupancy**2
+            data_array[row_count, 0] = internal_energy
+            data_array[row_count, 1] = occupancy
+            data_array[row_count, 2] = internal_energy_times_occupancy
+            data_array[row_count, 3] = occupancy_squared
+            row_count += 1
+    df = pd.DataFrame(data=data_array, columns=["U", "N", "UN", "NN"])
+    mean_u = df["U"].mean()
+    mean_n = df["N"].mean()
+    mean_un = df["UN"].mean()
+    mean_nn = df["NN"].mean()
+    varience = mean_nn - mean_n**2
+    cov_un = mean_un - (mean_u * mean_n)
+
+    return varience, cov_un
 
 
 def get_mole_fraction(grid, grid_length):
@@ -316,6 +349,8 @@ def get_mole_fraction(grid, grid_length):
     print("Total Li atoms:", total_num_of_li, " Total sites:", total_num_of_sites, " Total mole fraction:",
           total_mole_fraction)
 
+    return total_mole_fraction, counter[0][0]/counter[0][1], counter[1][0]/counter[1][1]
+
 
 if __name__ == '__main__':
     grid_length = 10  # This is the number of unit cells - contains 8 lithium atoms.
@@ -326,19 +361,42 @@ if __name__ == '__main__':
 
     grid = get_grid(grid_length)  # Returns a numpy 3d array [x][y][z] of each primitive cell.
 
-    number_of_mcs = 100000
-    sample_rate = 10000
+    number_of_mcs = 50000
     start_mu = -4.3  # Start chemical potential
+    end_mu = - 3.88
     step_size_mu = 0.01  # Step size for chemical potential
+    rows = math.ceil((end_mu - start_mu)/step_size_mu)
+    row_count = 0
+    results_array = np.zeros((rows + 1, 5))  # Columns for delta S, x, mu, sl1 mole fraction, sl2 mole fraction
 
-    while start_mu < -3.88:
-
-        print("Chemical potential: ", start_mu)
+    for chem in np.arange(start_mu, end_mu+step_size_mu, step_size_mu):
+        print("Chemical potential: ", chem)
         for i in range(number_of_mcs):
-            monte_carlo(grid, grid_length, kb, T, start_mu)
+            grid = monte_carlo(grid, grid_length, kb, T, chem)
 
-        get_mole_fraction(grid, grid_length)  # Prints the final mole fraction
+        total_mole_fraction, sl1_mole_fraction, sl2_mole_fraction = get_mole_fraction(grid, grid_length)  # Prints the final mole fraction
 
+        var, cov = thermal_fluctuations(grid, grid_length, kb, T, chem,
+                                        eps)  # Prints the data frame for the values of U and N
+
+        delta_entropy = (1 / T) * (cov / var - chem)
+        results_array[row_count, 0] = delta_entropy
+        results_array[row_count, 1] = total_mole_fraction
+        results_array[row_count, 2] = chem
+        results_array[row_count, 3] = sl1_mole_fraction
+        results_array[row_count, 4] = sl1_mole_fraction
+        row_count += 1
         print("----------")
-        start_mu += step_size_mu
 
+    results_dataframe = pd.DataFrame(data=results_array, columns=["Delta Entropy", "Mole Fraction of Li",
+                                                                  "Chemical potential", "Mole fraction sub lattice 1",
+                                                                  "Mole fraction sub lattice 2"])
+    results_dataframe.to_csv(r'C:\Users\samaf\Desktop\SimulationCode\simulation-projects\LMO_data_frame_results.csv', index=False)
+
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+    results_dataframe.plot(kind='scatter', ax=axes[0, 0], x='Mole Fraction of Li', y='Chemical potential', color='red')
+    results_dataframe.plot(kind='scatter', ax=axes[0, 1], x='Mole Fraction of Li', y='Delta Entropy', color='red')
+    results_dataframe.plot(kind='scatter', ax=axes[1, 0], x='Mole Fraction of Li', y='Mole fraction sub lattice 1', color='red')
+    results_dataframe.plot(kind='scatter', ax=axes[1, 0], x='Mole Fraction of Li', y='Mole fraction sub lattice 2', color='blue')
+
+    plt.show()
