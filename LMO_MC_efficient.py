@@ -1,5 +1,5 @@
 """
-Simulates the lithium intercalation in a lithium manganese oxide cathode using Monte Carlo simulation methods.
+Simulates the lithium atoms in a lithium manganese oxide cathode using Monte Carlo simulation methods.
 """
 
 import numpy as np
@@ -54,10 +54,46 @@ class MonteCarlo:
                                      [0, -1, 1],
                                      [0, -1, -1]])
 
-        self.lattice = np.zeros((self.xl, self.yl,
-                                 self.zl))  # Initialises the lattice with all sites empty represented by a 0. A filled lattice is represented by a 1
+        # These vectors contains the relative positions of all 12 next nearest neighbours.
+        self.nnn_vector1 = np.array([[0, - 1, 0],  # For i = 1
+                                     [0, 1, 0],
+                                     [1, 1, 0],
+                                     [1, - 1, 0],
+                                     [1, 0, 2],
+                                     [0, 0, 2],
+                                     [0, 1, 2],
+                                     [0, - 1, 2],
+                                     [1, 0, - 2],
+                                     [0, 0, - 2],
+                                     [0, 1, - 2],
+                                     [0, - 1, - 2]])
+        self.nnn_vector2 = np.array([[0, - 1, 0],  # For i = -1
+                                     [0, 1, 0],
+                                     [-1, 1, 0],
+                                     [-1, - 1, 0],
+                                     [-1, 0, 2],
+                                     [0, 0, 2],
+                                     [0, 1, 2],
+                                     [0, - 1, 2],
+                                     [-1, 0, - 2],
+                                     [0, 0, - 2],
+                                     [0, 1, - 2],
+                                     [0, - 1, - 2]])
 
-    def get_nn_vector(self, x, y, z):
+        self.lattice = np.zeros((self.xl, self.yl, self.zl))  # Initialises the lattice with all sites empty
+        # represented by a 0. A filled lattice is represented by a 1
+        self.nn_dictionary = {}  # Key is the 3d index (x, y, z) and value is a np array with its nn vector
+        self.nnn_dictionary = {}  # Key is the 3d index (x, y, z) and value is a np array with its nn vector
+
+    def set_neighbours(self):
+
+        for z in range(self.zl):
+            for y in range(self.yl):
+                for x in range(self.xl):
+                    self.nn_dictionary[(x, y, z)] = self.get_nn_vector(y, z)
+                    self.nnn_dictionary[(x, y, z)] = self.get_nnn_vector(y, z)
+
+    def get_nn_vector(self, y, z):
         if z % 2 == 0:
             # Sub lattice 1
             if (y + (z / 2)) % 2 == 0:
@@ -74,33 +110,19 @@ class MonteCarlo:
         # nn vector contains the relative positions of all 4 nearest neighbours and depends on the sites position.
         return nn_vector
 
-    def get_nnn_vector(self, x, y, z):
+    def get_nnn_vector(self, y, z):
         if z % 2 == 0:
             # Sub lattice 1
             if (y + (z / 2)) % 2 == 0:
-                self.i2 = -1
+                nnn_vector = self.nnn_vector2
             else:
-                self.i2 = 1
+                nnn_vector = self.nnn_vector1
         else:
             # Sub lattice 2
             if (y + ((z + 1) / 2)) % 2 == 0:
-                self.i2 = 1
+                nnn_vector = self.nnn_vector1
             else:
-                self.i2 = -1
-
-        # This vector contains the relative positions of all 12 next nearest neighbours.
-        nnn_vector = np.array([[0, - 1, 0],
-                               [0, 1, 0],
-                               [self.i2, 1, 0],
-                               [self.i2, - 1, 0],
-                               [self.i2, 0, 2],
-                               [0, 0, 2],
-                               [0, 1, 2],
-                               [0, - 1, 2],
-                               [self.i2, 0, - 2],
-                               [0, 0, - 2],
-                               [0, 1, - 2],
-                               [0, - 1, - 2]])
+                nnn_vector = self.nnn_vector2
 
         return nnn_vector
 
@@ -118,16 +140,10 @@ class MonteCarlo:
         Calculates the number of Li-Li interactions on a atoms nearest neighbours at position x, y, z.
         """
         sum_of_nn = 0
-        nn_vector = self.get_nn_vector(x, y, z)
 
-        # Try and except block used in case there is an index referenced out of range then the program doesnt quit.
-        try:
-            for vector in nn_vector:
-                sum_of_nn += self.lattice[x, y, z] * self.lattice[
-                    (x + vector[0]) % self.xl, (y + vector[1]) % self.yl, (z + vector[2]) % self.zl]
-        except Exception as e:
-            print(e)
-            print("nn neighbour error: Error occurred at index: ", x, y, z)
+        for vector in self.nn_dictionary.get((x, y, z)):
+            sum_of_nn += self.lattice[x, y, z] * self.lattice[
+                (x + vector[0]) % self.xl, (y + vector[1]) % self.yl, (z + vector[2]) % self.zl]
 
         return sum_of_nn
 
@@ -136,16 +152,10 @@ class MonteCarlo:
         Calculates the number of Li-Li interactions on a atoms next nearest neighbours at position x, y, z.
         """
         sum_of_nnn = 0
-        nnn_vector = self.get_nnn_vector(x, y, z)
 
-        try:
-            for vector in nnn_vector:
-                sum_of_nnn += self.lattice[x, y, z] * self.lattice[
-                    (x + vector[0]) % self.xl, (y + vector[1]) % self.yl, (z + vector[2]) % self.zl]
-        except Exception as e:
-            # This will occur when the index is out of range od the grid.
-            print(e)
-            print("Error occurred at index: ", x, y, z)
+        for vector in self.nnn_dictionary.get((x, y, z)):
+            sum_of_nnn += self.lattice[x, y, z] * self.lattice[
+                (x + vector[0]) % self.xl, (y + vector[1]) % self.yl, (z + vector[2]) % self.zl]
 
         return sum_of_nnn
 
@@ -153,7 +163,6 @@ class MonteCarlo:
         """
         Returns the hamiltonian for an atom at position x, y, z and chemical potential mu.
         """
-
         return self.j1 * self.get_nn(x, y, z) + self.j2 * self.get_nnn(x, y, z) - self.lattice[x, y, z] * (
                 self.eps + mu)  # This is the hamiltonian of 1 atom
 
@@ -170,7 +179,6 @@ class MonteCarlo:
         Selects a random position in the lattice and swaps the occupation number to see if it lowers the energy.
         Accepts if it lowers the energy or under the boltzmann distribution.
         """
-
         random_position = [random.randint(0, self.xl - 1), random.randint(0, self.yl - 1),
                            random.randint(0, self.zl - 1)]
         current_h = self.node_hamiltonian(random_position[0], random_position[1], random_position[2], mu)
@@ -376,7 +384,9 @@ if __name__ == '__main__':
     start_time = time.time()
 
     mc = MonteCarlo()
-    mc.run_simulation()
+    mc.set_neighbours()
+    #mc.run_simulation()
+    mc.monte_carlo(-4.0)
 
     end_time = time.time()
     print("Execution time: ", end_time - start_time)
