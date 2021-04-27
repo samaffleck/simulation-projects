@@ -55,10 +55,10 @@ class Atom:
         self.y_index = y_index
         self.z_index = z_index
 
-        # self.j1 = 37.5e-3  # Attraction parameter in eV of nearest
-        # self.j2 = -4.0e-3  # Attraction parameter in eV of next nearest
-        self.j1 = 0  # Ideal case
-        self.j2 = 0  # Ideal case
+        self.j1 = 37.5e-3  # Attraction parameter in eV of nearest
+        self.j2 = -4.0e-3  # Attraction parameter in eV of next nearest
+        # self.j1 = 0  # Ideal case
+        # self.j2 = 0  # Ideal case
         self.eps = 4.12  # In eV
 
         self.xl = grid_length  # Number of atoms in the x axis
@@ -177,8 +177,6 @@ class Atom:
     def node_hamiltonian(self, mu):
         sum_of_nn = 0
         sum_of_nnn = 0
-        nn_term = 0
-        nnn_term = 0
 
         for nn in self.neighbours:
             sum_of_nn += (self.c * nn.c)
@@ -203,6 +201,22 @@ class Atom:
             sum_of_nnn += (self.c * nnn.c)
 
         return sum_of_nn,  sum_of_nnn
+
+    def get_node_internal_energy(self):
+        sum_of_nn = 0
+        sum_of_nnn = 0
+
+        for nn in self.neighbours:
+            sum_of_nn += (self.c * nn.c)
+        nn_term = sum_of_nn * self.j1
+
+        for nnn in self.nnn:
+            sum_of_nnn += (self.c * nnn.c)
+        nnn_term = sum_of_nnn * self.j2
+
+        self.chemical_potential_term = - self.c * (self.eps)
+
+        return nn_term + nnn_term + self.chemical_potential_term  # This is the hamiltonian of 1 atom
 
 
 def monte_carlo(grid, grid_length, kb, T, mu, update_occ=False):
@@ -297,18 +311,11 @@ def get_internal_energy(grid, grid_length, eps, j1, j2):
         :return: internal energy (U) of the whole grid
         """
 
-    total_n = 0
-    total_nn = 0
-    total_nnn = 0
+    internal_energy = 0
     for z in range(grid_length * 4):
         for y in range(grid_length * 2):
             for x in range(grid_length):
-                nn, nnn = grid[x][y][z].get_neighbour_count()
-                total_nn += nn
-                total_nnn += nnn
-                total_n += grid[x][y][z].c
-
-    internal_energy = j1 * total_nn + j2 * total_nnn - (eps * total_n)
+                internal_energy += grid[x][y][z].get_node_internal_energy()
 
     return internal_energy
 
@@ -325,22 +332,24 @@ def get_occupancy(grid, gird_length):
 
 def thermal_fluctuations(grid, grid_length, kb, T, mu, eps, j1, j2):
     sample_frequency = 200
-    total_iterations = 500000
+    total_iterations = 50000
     total_rows = total_iterations / sample_frequency
     data_array = np.zeros((int(total_rows), 4))  # Columns for U, N, UN and N^2.
     row_count = 0
-    occupancy = get_occupancy(grid, grid_length)  # Get the initial occupancy by looping through the whole grid.
+    # occupancy = get_occupancy(grid, grid_length)  # Get the initial occupancy by looping through the whole grid.
 
     for i in range(total_iterations):
         grid, atom_occ, swapped = monte_carlo(grid, grid_length, kb, T, mu, True)
-        if swapped:
-            if atom_occ == 0:
-                occupancy += 1
-            else:
-                occupancy -= 1
+        # if swapped:
+        #     if atom_occ == 0:
+        #         occupancy += 1
+        #     else:
+        #         occupancy -= 1
 
         if i % sample_frequency == 0:
             internal_energy = get_internal_energy(grid, grid_length, eps, j1, j2)
+            occupancy = get_occupancy(grid, grid_length)  # Get the initial occupancy by looping through the whole grid.
+
             internal_energy_times_occupancy = internal_energy * occupancy
             occupancy_squared = occupancy * occupancy
             data_array[row_count, 0] = internal_energy
@@ -397,7 +406,7 @@ if __name__ == '__main__':
 
     grid = get_grid(grid_length)  # Returns a numpy 3d array [x][y][z] of each primitive cell.
 
-    number_of_mcs = 500000
+    number_of_mcs = 50000
     start_mu = -4.3  # Start chemical potential
     end_mu = - 3.88
     step_size_mu = 0.02  # Step size for chemical potential
@@ -420,7 +429,7 @@ if __name__ == '__main__':
         finishThermo_time = time.time()
         print("Time to finish thermo averaging:", finishThermo_time - finishMC_time)
 
-        delta_entropy = (1 / T) * (cov / var - chem)
+        delta_entropy = (1 / T) * ((cov / var) - chem)
         results_array[row_count, 0] = delta_entropy
         results_array[row_count, 1] = total_mole_fraction
         results_array[row_count, 2] = -1 * chem
