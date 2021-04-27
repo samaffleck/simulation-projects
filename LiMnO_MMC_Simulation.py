@@ -9,6 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 from scipy import integrate
+import time
 
 
 class Atom:
@@ -54,10 +55,10 @@ class Atom:
         self.y_index = y_index
         self.z_index = z_index
 
-        self.j1 = 37.5e-3  # Attraction parameter in eV of nearest
-        self.j2 = -4.0e-3  # Attraction parameter in eV of next nearest
-        # self.j1 = 0  Ideal case
-        # self.j2 = 0  Ideal case
+        # self.j1 = 37.5e-3  # Attraction parameter in eV of nearest
+        # self.j2 = -4.0e-3  # Attraction parameter in eV of next nearest
+        self.j1 = 0  # Ideal case
+        self.j2 = 0  # Ideal case
         self.eps = 4.12  # In eV
 
         self.xl = grid_length  # Number of atoms in the x axis
@@ -191,21 +192,17 @@ class Atom:
 
         return nn_term + nnn_term + self.chemical_potential_term  # This is the hamiltonian of 1 atom
 
-    def get_internal_energy(self):
+    def get_neighbour_count(self):
         sum_of_nn = 0
         sum_of_nnn = 0
 
         for nn in self.neighbours:
             sum_of_nn += (self.c * nn.c)
-        nn_term = sum_of_nn * self.j1
 
         for nnn in self.nnn:
             sum_of_nnn += (self.c * nnn.c)
-        nnn_term = sum_of_nnn * self.j2
 
-        chem_term = - self.c * self.eps
-
-        return nn_term + nnn_term + chem_term
+        return sum_of_nn,  sum_of_nnn
 
 
 def monte_carlo(grid, grid_length, kb, T, mu, update_occ=False):
@@ -285,12 +282,12 @@ def lattice_hamiltonian(grid, grid_length, eps, mu):
     for z in range(grid_length * 4):
         for y in range(grid_length * 2):
             for x in range(grid_length):
-                hamiltonian += (grid[x][y][z].node_hamiltonian() - (eps + mu) * grid[x][y][z].c)
+                hamiltonian += (grid[x][y][z].node_hamiltonian() - (eps + mu) * grid[x][y][z].c)  # I don't think I should have the - (eps + mu) term as this is already in node_ham()
 
     return hamiltonian
 
 
-def get_internal_energy(grid, grid_length, eps, mu):
+def get_internal_energy(grid, grid_length, eps, j1, j2):
     """
         Calculates the total internal energy
 
@@ -300,12 +297,18 @@ def get_internal_energy(grid, grid_length, eps, mu):
         :return: internal energy (U) of the whole grid
         """
 
-    internal_energy = 0
+    total_n = 0
+    total_nn = 0
+    total_nnn = 0
     for z in range(grid_length * 4):
         for y in range(grid_length * 2):
             for x in range(grid_length):
-                internal_energy += (grid[x][y][z].node_hamiltonian(mu) - grid[x][y][z].chemical_potential_term - eps *
-                                    grid[x][y][z].c)
+                nn, nnn = grid[x][y][z].get_neighbour_count()
+                total_nn += nn
+                total_nnn += nnn
+                total_n += grid[x][y][z].c
+
+    internal_energy = j1 * total_nn + j2 * total_nnn - (eps * total_n)
 
     return internal_energy
 
@@ -320,9 +323,9 @@ def get_occupancy(grid, gird_length):
     return occupancy
 
 
-def thermal_fluctuations(grid, grid_length, kb, T, mu, eps):
-    sample_frequency = 500
-    total_iterations = 100000
+def thermal_fluctuations(grid, grid_length, kb, T, mu, eps, j1, j2):
+    sample_frequency = 200
+    total_iterations = 500000
     total_rows = total_iterations / sample_frequency
     data_array = np.zeros((int(total_rows), 4))  # Columns for U, N, UN and N^2.
     row_count = 0
@@ -337,7 +340,7 @@ def thermal_fluctuations(grid, grid_length, kb, T, mu, eps):
                 occupancy -= 1
 
         if i % sample_frequency == 0:
-            internal_energy = get_internal_energy(grid, grid_length, eps, mu)
+            internal_energy = get_internal_energy(grid, grid_length, eps, j1, j2)
             internal_energy_times_occupancy = internal_energy * occupancy
             occupancy_squared = occupancy * occupancy
             data_array[row_count, 0] = internal_energy
@@ -385,29 +388,37 @@ def get_mole_fraction(grid, grid_length):
 
 if __name__ == '__main__':
     grid_length = 10  # This is the number of unit cells - contains 8 lithium atoms.
+    lattice_points = (grid_length ** 3) * 8
     T = 298  # Temperature in K
     kb = 8.617e-5  # Boltzmann constant in eV/K
     eps = 4.12  # in eV
+    j1 = 37.5e-3  # Attraction parameter in eV of nearest
+    j2 = -4.0e-3  # Attraction parameter in eV of next nearest
 
     grid = get_grid(grid_length)  # Returns a numpy 3d array [x][y][z] of each primitive cell.
 
     number_of_mcs = 500000
     start_mu = -4.3  # Start chemical potential
     end_mu = - 3.88
-    step_size_mu = 0.01  # Step size for chemical potential
+    step_size_mu = 0.02  # Step size for chemical potential
     rows = math.ceil((end_mu - start_mu) / step_size_mu)
     row_count = 0
-    results_array = np.zeros((rows + 1, 5))  # Columns for delta S, x, mu, sl1 mole fraction, sl2 mole fraction
+    results_array = np.zeros((rows + 1, 6))  # Columns for delta S, x, mu, sl1 mole fraction, sl2 mole fraction
 
     for chem in np.arange(start_mu, end_mu + step_size_mu, step_size_mu):
         print("Chemical potential: ", chem)
+        startMC_time = time.time()
         for i in range(number_of_mcs):
             grid = monte_carlo(grid, grid_length, kb, T, chem)
 
+        finishMC_time = time.time()
+        print("Time to finish MC steps: ", finishMC_time - startMC_time)
         total_mole_fraction, sl1_mole_fraction, sl2_mole_fraction = get_mole_fraction(grid, grid_length)  # Prints the final mole fraction
 
-        var, cov = thermal_fluctuations(grid, grid_length, kb, T, chem,
-                                        eps)  # Prints the data frame for the values of U and N
+        var, cov = thermal_fluctuations(grid, grid_length, kb, T, chem, eps, j1, j2)
+
+        finishThermo_time = time.time()
+        print("Time to finish thermo averaging:", finishThermo_time - finishMC_time)
 
         delta_entropy = (1 / T) * (cov / var - chem)
         results_array[row_count, 0] = delta_entropy
@@ -415,12 +426,13 @@ if __name__ == '__main__':
         results_array[row_count, 2] = -1 * chem
         results_array[row_count, 3] = sl1_mole_fraction
         results_array[row_count, 4] = sl2_mole_fraction
+        results_array[row_count, 5] = var/(kb * T * lattice_points)
         row_count += 1
         print("----------")
 
     results_dataframe = pd.DataFrame(data=results_array, columns=["Delta Entropy", "Mole Fraction of Li",
                                                                   "Chemical potential", "Mole fraction sub lattice 1",
-                                                                  "Mole fraction sub lattice 2"])
+                                                                  "Mole fraction sub lattice 2", "dq/dv"])
 
     entropy_list = integrate.cumtrapz(results_array[:, 0], results_array[:, 1], initial=0)  # Contains the entropy values
     results_dataframe['Entropy'] = entropy_list
@@ -429,13 +441,34 @@ if __name__ == '__main__':
     path = cwd + "/monte_carlo_results.csv"
     results_dataframe.to_csv(path, index=False)
 
-    fig, axes = plt.subplots(nrows=2, ncols=2)
-    results_dataframe.plot(kind='scatter', ax=axes[0, 0], x='Mole Fraction of Li', y='Chemical potential', color='red')
-    results_dataframe.plot(kind='scatter', ax=axes[0, 1], x='Mole Fraction of Li', y='Delta Entropy', color='red')
-    ax1 = results_dataframe.plot(kind='scatter', ax=axes[1, 0], x='Mole Fraction of Li',
-                                 y='Mole fraction sub lattice 1', color='red')
-    results_dataframe.plot(kind='scatter', ax=ax1, x='Mole Fraction of Li', y='Mole fraction sub lattice 2',
-                           color='blue')
-    results_dataframe.plot(kind='scatter', ax=axes[1, 1], x='Mole Fraction of Li', y='Entropy', color='red')
+    fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
+
+    plt.rcParams['font.size'] = 12
+    plt.rcParams['axes.linewidth'] = 2
+
+    fig.suptitle('Number of MCS: %i' %number_of_mcs)
+
+    ax1 = results_dataframe.plot(kind='scatter', ax=axes[0, 0], x='Mole Fraction of Li', y='Chemical potential', color='black', s=4)
+    ax2 = results_dataframe.plot(kind='scatter', ax=axes[0, 1], x='Mole Fraction of Li', y='Delta Entropy', color='black', s=4)
+    ax3 = results_dataframe.plot(kind='scatter', ax=axes[1, 0], x='Mole Fraction of Li',
+                                 y='Mole fraction sub lattice 1', color='red', s=4)
+    results_dataframe.plot(kind='scatter', ax=ax3, x='Mole Fraction of Li', y='Mole fraction sub lattice 2',
+                           color='blue', s=4)
+    ax4 = results_dataframe.plot(kind='scatter', ax=axes[1, 1], x='Mole Fraction of Li', y='Entropy', color='black', s=4)
+
+    ax3.legend(['SL1', 'SL2'])
+
+    ax1.set_xlim([0, 1])
+    ax2.set_xlim([0, 1])
+    ax3.set_xlim([0, 1])
+    ax4.set_xlim([0, 1])
+
+    ax3.set_xlabel('x')
+    ax4.set_xlabel('x')
+
+    ax1.set_ylabel('E / V vd. Li/Li+')
+    ax2.set_ylabel('dS/dx [kJ/mol K]')
+    ax3.set_ylabel('Sublattice occupancy')
+    ax4.set_ylabel('S [kJ/mol K]')
 
     plt.show()
