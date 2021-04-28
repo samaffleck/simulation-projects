@@ -283,7 +283,7 @@ class MonteCarlo:
         mean_n = df["N"].mean()
         mean_un = df["UN"].mean()
         mean_nn = df["NN"].mean()
-        variance = mean_nn - mean_n ** 2
+        variance = mean_nn - mean_n * mean_n
         cov_un = mean_un - (mean_u * mean_n)
 
         return variance, cov_un
@@ -301,8 +301,10 @@ class MonteCarlo:
         for mu in np.arange(self.start_mu, self.end_mu + self.step_size_mu, self.step_size_mu):
             startMC_time = time.time()
             print("Chemical potential: ", mu)
+
             for i in range(self.number_of_mcs):
                 self.monte_carlo(mu)
+
             finishMC_time = time.time()
             print("Time to equilibrium: ", finishMC_time - startMC_time)
             total_mole_fraction, sl1_mole_fraction, sl2_mole_fraction = self.mole_fraction()  # Prints the final mole fraction
@@ -319,8 +321,7 @@ class MonteCarlo:
             results_array[row_count, 4] = sl2_mole_fraction
             results_array[row_count, 5] = var / (self.kb * self.T * self.sites)
             row_count += 1
-            finishData_time = time.time()
-            print("Time to add data: ", finishData_time - finishThermo_time)
+
             print("----------")
 
         self.run_results(results_array)
@@ -383,10 +384,13 @@ class MonteCarlo:
 if __name__ == '__main__':
     start_time = time.time()
 
+    # import timeit
+
     mc = MonteCarlo()
     mc.set_neighbours()
-    #mc.run_simulation()
-    mc.monte_carlo(-4.0)
+    # t = timeit.Timer("mc.monte_carlo(-4.0)", "from__main__import MonteCarlo; mc = MonteCarlo()")
+    # print(t.timeit())
+    mc.run_simulation()
 
     end_time = time.time()
     print("Execution time: ", end_time - start_time)
