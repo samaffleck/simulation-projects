@@ -234,6 +234,7 @@ def monte_carlo(grid, grid_length, kb, T, mu, update_occ=False):
     rand_atom = grid[random.randint(0, grid_length - 1)][random.randint(0, (grid_length * 2) - 1)][
         random.randint(0, (grid_length * 4) - 1)]
     rand_atom_occ = rand_atom.c
+    random_atom_u = rand_atom.get_node_internal_energy()
 
     current_h = rand_atom.node_hamiltonian(mu)
     rand_atom.swap_c()
@@ -251,7 +252,7 @@ def monte_carlo(grid, grid_length, kb, T, mu, update_occ=False):
             swapped = False
 
     if update_occ:
-        return grid, rand_atom_occ, swapped
+        return grid, rand_atom_occ, swapped, rand_atom, random_atom_u
     else:
         return grid
 
@@ -332,24 +333,23 @@ def get_occupancy(grid, gird_length):
 
 def thermal_fluctuations(grid, grid_length, kb, T, mu, eps, j1, j2):
     sample_frequency = 200
-    total_iterations = 50000
+    total_iterations = 500000
     total_rows = total_iterations / sample_frequency
     data_array = np.zeros((int(total_rows), 4))  # Columns for U, N, UN and N^2.
     row_count = 0
-    # occupancy = get_occupancy(grid, grid_length)  # Get the initial occupancy by looping through the whole grid.
+    occupancy = get_occupancy(grid, grid_length)  # Get the initial occupancy by looping through the whole grid.
+    internal_energy = get_internal_energy(grid, grid_length, eps, j1, j2)
 
     for i in range(total_iterations):
-        grid, atom_occ, swapped = monte_carlo(grid, grid_length, kb, T, mu, True)
-        # if swapped:
-        #     if atom_occ == 0:
-        #         occupancy += 1
-        #     else:
-        #         occupancy -= 1
+        grid, atom_occ, swapped, random_atom, random_atom_u = monte_carlo(grid, grid_length, kb, T, mu, True)
+        if swapped:
+            if atom_occ == 0:
+                occupancy += 1
+            else:
+                occupancy -= 1
+            internal_energy += random_atom.get_node_internal_energy() - random_atom_u
 
         if i % sample_frequency == 0:
-            internal_energy = get_internal_energy(grid, grid_length, eps, j1, j2)
-            occupancy = get_occupancy(grid, grid_length)  # Get the initial occupancy by looping through the whole grid.
-
             internal_energy_times_occupancy = internal_energy * occupancy
             occupancy_squared = occupancy * occupancy
             data_array[row_count, 0] = internal_energy
@@ -406,10 +406,10 @@ if __name__ == '__main__':
 
     grid = get_grid(grid_length)  # Returns a numpy 3d array [x][y][z] of each primitive cell.
 
-    number_of_mcs = 50000
+    number_of_mcs = 500000
     start_mu = -4.3  # Start chemical potential
     end_mu = - 3.88
-    step_size_mu = 0.02  # Step size for chemical potential
+    step_size_mu = 0.01  # Step size for chemical potential
     rows = math.ceil((end_mu - start_mu) / step_size_mu)
     row_count = 0
     results_array = np.zeros((rows + 1, 6))  # Columns for delta S, x, mu, sl1 mole fraction, sl2 mole fraction
@@ -465,7 +465,7 @@ if __name__ == '__main__':
                            color='blue', s=4)
     ax4 = results_dataframe.plot(kind='scatter', ax=axes[1, 1], x='Mole Fraction of Li', y='Entropy', color='black', s=4)
 
-    ax3.legend(['SL1', 'SL2'])
+    ax3.legend(['Sub lattice 1', 'Sub lattice 2'])
 
     ax1.set_xlim([0, 1])
     ax2.set_xlim([0, 1])
