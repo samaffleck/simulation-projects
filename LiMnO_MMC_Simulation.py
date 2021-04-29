@@ -15,41 +15,9 @@ import time
 class Atom:
     """
     Atom class contains the object of a single Li atom
-
-    ...
-
-    Methods
-    ----------
-    swap_c(self)
-        Swaps the occupation number for a atom where 1 represents a Li atom and 0 represents a vecent site.
-
-    get_position(self)
-        Prints the cartesian coordinates for the atom based on its index in the lattice.
-
-    get_nn(self, grid)
-        Assigns the atoms 4 nearest neighbours in the lattice.
-
-    get_nnn(self, grid)
-        Assigns the atoms 12 next nearest neighbours in the lattice.
-
-    node_hamiltonian(self)
-        Loops through the nearest and next nearest neighbours to calculate the hamiltonian for 1 atom,
-        this is used to calculate the relative change in H for a given configuration change.
     """
 
     def __init__(self, x_index, y_index, z_index, grid_length):
-        """
-        Parameters
-        ----------
-        :param x_index:
-            This is the x index in the grid/lattice
-        :param y_index:
-            This is the y index in the grid/lattice
-        :param z_index:
-            This is the z index in the grid/lattice
-        :param grid_length:
-            This is the number of unit cells per side of a cube that each contains 8 Li atoms.
-        """
 
         self.x_index = x_index
         self.y_index = y_index
@@ -124,6 +92,15 @@ class Atom:
         self.c = 0  # The occupation number, c = 1 is a Lithium atom c = 0 is a vacant site.
         self.temp_neighbours = []  # Temporarily stores the neighbours before converting to a numpy array.
 
+    def __add__(self, other):
+        if isinstance(other, Atom):
+            return self.c + other.c
+        else:
+            return self.c + other
+
+    def __radd__(self, other):
+        return self + other
+
     def swap_c(self):
         """
         Swaps the occupation number of an atom.
@@ -153,24 +130,16 @@ class Atom:
     def get_nn(self, grid):
         self.temp_neighbours = []
 
-        # Try and except block used in case there is an index referenced out of range then the program doesnt quit.
-        try:
-            for vector in self.nn_vector:
-                self.temp_neighbours.append(grid[vector[0]][vector[1]][vector[2]])
-        except Exception as e:
-            print(e)
-            print("Error occurred at index: ", self.x_index, self.y_index, self.z_index)
+        for vector in self.nn_vector:
+            self.temp_neighbours.append(grid[vector[0]][vector[1]][vector[2]])
 
         self.neighbours = np.array(self.temp_neighbours)
 
     def get_nnn(self, grid):
         self.temp_neighbours = []
-        try:
-            for vector in self.nnn_vector:
-                self.temp_neighbours.append(grid[vector[0]][vector[1]][vector[2]])
-        except Exception as e:
-            # This will occur when the index is out of range od the grid.
-            print(e)
+
+        for vector in self.nnn_vector:
+            self.temp_neighbours.append(grid[vector[0]][vector[1]][vector[2]])
 
         self.nnn = np.array(self.temp_neighbours)
 
@@ -178,68 +147,58 @@ class Atom:
         sum_of_nn = 0
         sum_of_nnn = 0
 
-        for nn in self.neighbours:
-            sum_of_nn += (self.c * nn.c)
-        nn_term = sum_of_nn * self.j1
+        if self.c == 1:
 
-        for nnn in self.nnn:
-            sum_of_nnn += (self.c * nnn.c)
-        nnn_term = sum_of_nnn * self.j2
+            # sum_of_nn = np.sum(self.neighbours)
+            for nn in self.neighbours:
+                sum_of_nn += (self.c * nn.c)
+            nn_term = sum_of_nn * self.j1
 
-        self.chemical_potential_term = - self.c * (self.eps + mu)
+            # sum_of_nnn = np.sum(self.nnn)
+            for nnn in self.nnn:
+                sum_of_nnn += (self.c * nnn.c)
+            nnn_term = sum_of_nnn * self.j2
+        else:
+            return 0, 0
 
-        return nn_term + nnn_term + self.chemical_potential_term  # This is the hamiltonian of 1 atom
+        chemical_potential_term = - self.c * (self.eps + mu)
+        potential_term = - self.c * self.eps
 
-    def get_neighbour_count(self):
-        sum_of_nn = 0
-        sum_of_nnn = 0
-
-        for nn in self.neighbours:
-            sum_of_nn += (self.c * nn.c)
-
-        for nnn in self.nnn:
-            sum_of_nnn += (self.c * nnn.c)
-
-        return sum_of_nn,  sum_of_nnn
+        return nn_term + nnn_term + chemical_potential_term, nn_term + nnn_term + potential_term
 
     def get_node_internal_energy(self):
         sum_of_nn = 0
         sum_of_nnn = 0
 
-        for nn in self.neighbours:
-            sum_of_nn += (self.c * nn.c)
-        nn_term = sum_of_nn * self.j1
+        if self.c == 1:
+            for nn in self.neighbours:
+                sum_of_nn += (self.c * nn.c)
+            nn_term = sum_of_nn * self.j1
 
-        for nnn in self.nnn:
-            sum_of_nnn += (self.c * nnn.c)
-        nnn_term = sum_of_nnn * self.j2
+            for nnn in self.nnn:
+                sum_of_nnn += (self.c * nnn.c)
+            nnn_term = sum_of_nnn * self.j2
+        else:
+            nn_term = 0
+            nnn_term = 0
 
-        self.chemical_potential_term = - self.c * (self.eps)
+        potential_term = - self.c * self.eps
 
-        return nn_term + nnn_term + self.chemical_potential_term  # This is the hamiltonian of 1 atom
+        return nn_term + nnn_term + potential_term
 
 
 def monte_carlo(grid, grid_length, kb, T, mu, update_occ=False):
     """
     This method contains the metropolis monte carlo algorithm and is classed as 1 monte carlo step.
-
-    :param update_occ: Used to update the total occupancy if needed this is True when the function is called.
-    :param grid: 3d numpy array containing the objects Atom.
-    :param grid_length: Number of unit cells per side
-    :param kb: Boltzamnn constant
-    :param T: Temperature in K
-    :param mu: Chemical potential
-    :return: The new grid with 1 or 0 changes.
     """
     rand_atom = grid[random.randint(0, grid_length - 1)][random.randint(0, (grid_length * 2) - 1)][
         random.randint(0, (grid_length * 4) - 1)]
     rand_atom_occ = rand_atom.c
-    random_atom_u = rand_atom.get_node_internal_energy()
 
-    current_h = rand_atom.node_hamiltonian(mu)
+    current_h, random_atom_u = rand_atom.node_hamiltonian(mu)
     rand_atom.swap_c()
     swapped = True
-    new_h = rand_atom.node_hamiltonian(mu)
+    new_h, new_u = rand_atom.node_hamiltonian(mu)
     delta_h = current_h - new_h
 
     if delta_h < 0:
@@ -252,7 +211,7 @@ def monte_carlo(grid, grid_length, kb, T, mu, update_occ=False):
             swapped = False
 
     if update_occ:
-        return grid, rand_atom_occ, swapped, rand_atom, random_atom_u
+        return grid, rand_atom_occ, swapped, new_u, random_atom_u
     else:
         return grid
 
@@ -282,35 +241,10 @@ def get_grid(grid_length):
     return grid
 
 
-def lattice_hamiltonian(grid, grid_length, eps, mu):
+def get_internal_energy(grid, grid_length):
     """
-    Calculates the total hamiltonian
-
-    :param grid: 3D numpy array containing the object atom.
-    :param grid_length: Number of unit cells
-    :param eps: Constant
-    :param mu: Chemical potential
-    :return: hamiltonian of the whole grid
+    Calculates the total internal energy
     """
-
-    hamiltonian = 0
-    for z in range(grid_length * 4):
-        for y in range(grid_length * 2):
-            for x in range(grid_length):
-                hamiltonian += (grid[x][y][z].node_hamiltonian() - (eps + mu) * grid[x][y][z].c)  # I don't think I should have the - (eps + mu) term as this is already in node_ham()
-
-    return hamiltonian
-
-
-def get_internal_energy(grid, grid_length, eps, j1, j2):
-    """
-        Calculates the total internal energy
-
-        :param grid: 3D numpy array containing the object atom.
-        :param grid_length: Number of unit cells
-        :param eps: Constant
-        :return: internal energy (U) of the whole grid
-        """
 
     internal_energy = 0
     for z in range(grid_length * 4):
@@ -331,23 +265,23 @@ def get_occupancy(grid, gird_length):
     return occupancy
 
 
-def thermal_fluctuations(grid, grid_length, kb, T, mu, eps, j1, j2):
+def thermal_fluctuations(grid, grid_length, kb, T, mu):
     sample_frequency = 200
     total_iterations = 500000
     total_rows = total_iterations / sample_frequency
     data_array = np.zeros((int(total_rows), 4))  # Columns for U, N, UN and N^2.
     row_count = 0
     occupancy = get_occupancy(grid, grid_length)  # Get the initial occupancy by looping through the whole grid.
-    internal_energy = get_internal_energy(grid, grid_length, eps, j1, j2)
+    internal_energy = get_internal_energy(grid, grid_length)
 
     for i in range(total_iterations):
-        grid, atom_occ, swapped, random_atom, random_atom_u = monte_carlo(grid, grid_length, kb, T, mu, True)
+        grid, atom_occ, swapped, new_u, random_atom_u = monte_carlo(grid, grid_length, kb, T, mu, True)
         if swapped:
             if atom_occ == 0:
                 occupancy += 1
             else:
                 occupancy -= 1
-            internal_energy += random_atom.get_node_internal_energy() - random_atom_u
+            internal_energy += new_u - random_atom_u
 
         if i % sample_frequency == 0:
             internal_energy_times_occupancy = internal_energy * occupancy
@@ -409,7 +343,7 @@ if __name__ == '__main__':
     number_of_mcs = 500000
     start_mu = -4.3  # Start chemical potential
     end_mu = - 3.88
-    step_size_mu = 0.01  # Step size for chemical potential
+    step_size_mu = 0.005  # Step size for chemical potential
     rows = math.ceil((end_mu - start_mu) / step_size_mu)
     row_count = 0
     results_array = np.zeros((rows + 1, 6))  # Columns for delta S, x, mu, sl1 mole fraction, sl2 mole fraction
@@ -424,7 +358,7 @@ if __name__ == '__main__':
         print("Time to finish MC steps: ", finishMC_time - startMC_time)
         total_mole_fraction, sl1_mole_fraction, sl2_mole_fraction = get_mole_fraction(grid, grid_length)  # Prints the final mole fraction
 
-        var, cov = thermal_fluctuations(grid, grid_length, kb, T, chem, eps, j1, j2)
+        var, cov = thermal_fluctuations(grid, grid_length, kb, T, chem)
 
         finishThermo_time = time.time()
         print("Time to finish thermo averaging:", finishThermo_time - finishMC_time)
@@ -441,10 +375,11 @@ if __name__ == '__main__':
 
     results_dataframe = pd.DataFrame(data=results_array, columns=["Delta Entropy", "Mole Fraction of Li",
                                                                   "Chemical potential", "Mole fraction sub lattice 1",
-                                                                  "Mole fraction sub lattice 2", "dq/dv"])
+                                                                  "Mole fraction sub lattice 2", "dq/de"])
 
     entropy_list = integrate.cumtrapz(results_array[:, 0], results_array[:, 1], initial=0)  # Contains the entropy values
     results_dataframe['Entropy'] = entropy_list
+    results_dataframe['Order parameter'] = abs(results_dataframe['Mole fraction sub lattice 1'] - results_dataframe['Mole fraction sub lattice 2'])
 
     cwd = os.getcwd()
     path = cwd + "/monte_carlo_results.csv"
@@ -479,5 +414,20 @@ if __name__ == '__main__':
     ax2.set_ylabel('dS/dx [kJ/mol K]')
     ax3.set_ylabel('Sublattice occupancy')
     ax4.set_ylabel('S [kJ/mol K]')
+
+    fig2, axes2 = plt.subplots(nrows=1, ncols=2, constrained_layout=True)
+    fig2.suptitle('Number of MCS: %i' % number_of_mcs)
+
+    ax5 = results_dataframe.plot(kind='scatter', ax=axes2[0], x='Chemical potential', y='dq/de',
+                                 color='black', s=4)
+    ax6 = results_dataframe.plot(kind='scatter', ax=axes2[1], x='Mole Fraction of Li', y='Order parameter',
+                                 color='black', s=4)
+
+    ax5.set_xlabel('E ')
+    ax6.set_xlim([0, 1])
+    ax6.set_xlabel('x')
+
+    ax5.set_ylabel('- dx/dV')
+    ax6.set_ylabel('|n1-n2|')
 
     plt.show()
