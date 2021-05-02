@@ -278,15 +278,14 @@ def plot_results(results_array, number_of_mcs):
 
     fig.suptitle('Number of MCS: %i' % number_of_mcs)
 
-    ax1 = results_dataframe.plot(kind='scatter', ax=axes[0, 0], x='Mole Fraction of Li', y='Chemical potential', color='black', s=4)
-    ax2 = results_dataframe.plot(kind='scatter', ax=axes[0, 1], x='Mole Fraction of Li', y='Delta Entropy', color='black', s=4)
-    ax3 = results_dataframe.plot(kind='scatter', ax=axes[1, 0], x='Mole Fraction of Li',
-                                 y='Mole fraction sub lattice 1', color='red', s=4)
-    results_dataframe.plot(kind='scatter', ax=ax3, x='Mole Fraction of Li', y='Mole fraction sub lattice 2',
-                           color='blue', s=4)
-    ax4 = results_dataframe.plot(kind='scatter', ax=axes[1, 1], x='Mole Fraction of Li', y='Entropy', color='black', s=4)
+    ax1 = results_dataframe.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black', markersize=4, ax=axes[0, 0], x='Mole Fraction of Li', y='Chemical potential')
+    ax2 = results_dataframe.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black', markersize=4, ax=axes[0, 1], x='Mole Fraction of Li', y='Delta Entropy')
+    ax3 = results_dataframe.plot(linestyle='-', color='blue', lw=0.5, marker='o', markeredgecolor='black', markersize=4, ax=axes[1, 0], x='Mole Fraction of Li',
+                                 y='Mole fraction sub lattice 1')
+    results_dataframe.plot(linestyle='-', color='green', lw=0.5, marker='o', markeredgecolor='black', markersize=4, ax=ax3, x='Mole Fraction of Li', y='Mole fraction sub lattice 2')
+    ax4 = results_dataframe.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black', markersize=4, ax=axes[1, 1], x='Mole Fraction of Li', y='Entropy')
 
-    ax3.legend(['Sub lattice 1', 'Sub lattice 2'])
+    #ax3.legend(['Sub lattice 1', 'Sub lattice 2'])
 
     ax1.set_xlim([0, 1])
     ax2.set_xlim([0, 1])
@@ -304,12 +303,9 @@ def plot_results(results_array, number_of_mcs):
     fig2, axes2 = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
     fig2.suptitle('Number of MCS: %i' % number_of_mcs)
 
-    ax5 = results_dataframe.plot(kind='scatter', ax=axes2[0, 0], x='Chemical potential', y='dq/de',
-                                 color='black', s=4)
-    ax6 = results_dataframe.plot(kind='scatter', ax=axes2[0, 1], x='Mole Fraction of Li', y='Order parameter',
-                                 color='black', s=4)
-    ax7 = results_dataframe.plot(kind='scatter', ax=axes2[1, 0], x='Mole Fraction of Li', y='Partial molar enthalpy',
-                                 color='black', s=4)
+    ax5 = results_dataframe.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black', markersize=4, ax=axes2[0, 0], x='Chemical potential', y='dq/de')
+    ax6 = results_dataframe.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black', markersize=4, ax=axes2[0, 1], x='Mole Fraction of Li', y='Order parameter')
+    ax7 = results_dataframe.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black', markersize=4, ax=axes2[1, 0], x='Mole Fraction of Li', y='Partial molar enthalpy')
 
     ax5.set_xlabel('E ')
     ax6.set_xlim([0, 1])
