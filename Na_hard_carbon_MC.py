@@ -17,7 +17,7 @@ class MonteCarlo:
         self.parser = argparse.ArgumentParser(description="Monte carlo simulation for sodation into hard carbon")
         self.parser.add_argument('--sites', type=int, metavar='', help='Total number of sites including nanopores and interlayers', default=500)
         self.parser.add_argument('--l', type=float, metavar='', help='Fraction of total sites in the interlayers', default=0.3)
-        self.parser.add_argument('--mcs', type=int, metavar='', help='Number of monte carlo steps', default=20000)
+        self.parser.add_argument('--mcs', type=int, metavar='', help='Number of monte carlo steps', default=1000000)
         self.parser.add_argument('--eps1', type=float, metavar='', help='Point interaction term for interlayers in eV', default=-0.377)
         self.parser.add_argument('--delE', type=float, metavar='', help='Point term for nanopores - priori heterogeneity in eV', default=-0.25)
         self.parser.add_argument('--g2', type=float, metavar='', help='g2 term', default=0)
@@ -29,6 +29,7 @@ class MonteCarlo:
         self.parser.add_argument('--start_mu', type=float, metavar='', help='starting chemical potential', default=-0.45)
         self.parser.add_argument('--finish_mu', type=float, metavar='', help='starting chemical potential', default=0.0)
         self.parser.add_argument('--step_chem', type=float, metavar='', help='step size of chemical potential', default=0.01)
+        self.parser.add_argument('--T', type=float, metavar='', help='Temperature', default=288)
 
         self.args = self.parser.parse_args()
 
@@ -42,7 +43,7 @@ class MonteCarlo:
         self.lattice = [np.zeros(self.lattice1_sites), np.zeros(self.lattice2_sites)]
 
         self.kb = 8.617e-5  # Boltzmann constant in eV/K
-        self.T = 288  # Temperature in K
+        self.T = self.args.T  # Temperature in K
 
         self.start_mu = self.args.start_mu
         self.end_mu = self.args.finish_mu
@@ -72,6 +73,9 @@ class MonteCarlo:
         return u
 
     def plot_results(self, results_array):
+        plt.rcParams['font.size'] = 12
+        plt.rcParams['axes.linewidth'] = 2
+
         results_df = pd.DataFrame(data=results_array, columns=["Interlayer mole fraction",
                                                                "Nanopore mole fraction",
                                                                "Total mole fraction",
@@ -79,19 +83,42 @@ class MonteCarlo:
                                                                "Partial molar entropy",
                                                                "dq/de",
                                                                "Partial molar enthalpy"])
+
+        cwd = os.getcwd()
+        path = cwd + "/Na_monte_carlo_results.csv"
+        results_df.to_csv(path, index=False)
+
         fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
         ax1 = results_df.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black',
                               markersize=4, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
         ax2 = results_df.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black',
                               markersize=4, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
+        #ax3 = results_df.plot(linestyle='-', color='blue', lw=0.5, marker='o', markeredgecolor='black',
+        #                      markersize=4, ax=axes[1, 0], x='Total mole fraction', y='Interlayer mole fraction')
+        #results_df.plot(linestyle='-', color='green', lw=0.5, marker='o', markeredgecolor='black', markersize=4,
+        #                ax=ax3, x='Total mole fraction', y='Nanopore mole fraction')
         ax3 = results_df.plot(linestyle='-', color='blue', lw=0.5, marker='o', markeredgecolor='black',
-                              markersize=4, ax=axes[1, 0], x='Total mole fraction', y='Interlayer mole fraction')
-        results_df.plot(linestyle='-', color='green', lw=0.5, marker='o', markeredgecolor='black', markersize=4,
-                        ax=ax3, x='Total mole fraction', y='Nanopore mole fraction')
+                              markersize=4, ax=axes[1, 0], x='Total mole fraction', y='dq/de')
         ax4 = results_df.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black',
                               markersize=4, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
 
+        fig.suptitle('Number of MCS: %i \n Number of lattice points: %i' % (self.args.mcs, self.args.sites))
+        ax1.set_xlim([0, 1])
+        ax2.set_xlim([0, 1])
+        ax3.set_xlim([0, 1])
+        ax4.set_xlim([0, 1])
+
+        ax3.set_xlabel('Na content, x')
+        ax4.set_xlabel('Na content, x')
+
+        ax1.set_ylabel('Voltage [V]')
+        ax2.set_ylabel('dS/dx []')
+        ax3.set_ylabel('dq/de')
+        ax4.set_ylabel('Partial molar enthalpy []')
+
+        fig_path = cwd + "/Na_plot_results.png"
+        plt.savefig(fig_path)
         plt.show()
 
     def monte_carlo(self, mu):
