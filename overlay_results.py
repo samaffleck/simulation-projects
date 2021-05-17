@@ -9,9 +9,9 @@ class DisplayResults:
         pass
 
     def display(self):
-        df1 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_uniform_2,2.csv")  # black line
-        df2 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_uniform_1,1.csv")  # green line
-        df3 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_normal_2,3.csv")  # blue line
+        df1 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_uniform_4.csv")  # black line
+        df2 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_normal_7.csv")  # green line
+        df3 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_uniform_3,3.csv")  # blue line
 
         fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
