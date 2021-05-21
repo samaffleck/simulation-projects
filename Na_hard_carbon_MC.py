@@ -9,6 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import argparse
+from pathlib import Path
 
 
 class MonteCarlo:
@@ -44,11 +45,8 @@ class MonteCarlo:
                                  default=-0.377)
         self.parser.add_argument('--eps1_sig', type=float, metavar='',
                                  help='Standard deviation for the point values for interlayers', default=0.1)
-        self.parser.add_argument('--eps1_logsig', type=float, metavar='',
-                                 help='Standard deviation for the point values for interlayers in a logarithmic distribution',
-                                 default=1.2)
         self.parser.add_argument('--mu_list', type=float, nargs='+', metavar='',
-                                 help='Standard deviation for the point values for interlayers in a logarithmic distribution',
+                                 help='List of chemical potentials to loop through',
                                  default=[-1.0, -0.99, -0.98, -0.97, -0.96, -0.95, -0.92, -0.88, -0.84, -0.80, -0.76,
                                           -0.72, -0.68, -0.64, -0.60,
                                           -0.56, -0.52, -0.5, -0.48, -0.46, -0.44, -0.42, -0.4, -0.38, -0.36, -0.34,
@@ -59,25 +57,26 @@ class MonteCarlo:
 
         self.args = self.parser.parse_args()
 
-        self.eps1 = self.args.eps1
-        self.eps2 = self.args.eps1_mean - self.args.delE
+        self.eps2 = self.args.eps1_mean - self.args.delE  # Constant point value for the nanopores.
 
         self.lattice1_sites = int(self.args.sites * self.args.l)  # Number of sites in the interlayers.
         self.lattice2_sites = self.args.sites - self.lattice1_sites  # Number of sites in the nanopores.
-        self.lattice = [np.zeros(self.lattice1_sites), np.zeros(
-            self.lattice2_sites)]  # Stores the occupation of all the sites in the lattice. Lattice[0] are the interlayers and lattice[1] are the nanopores.
 
+        # Stores the occupation number of all the sites in the lattice. Lattice[0] = interlayers and lattice[1] = nanopores.
+        self.lattice = [np.zeros(self.lattice1_sites), np.zeros(self.lattice2_sites)]
+
+        # Checks what distribution we want to use and initialises randomly the point energies for each lattice.
         if self.args.normal:
             self.lattice_energy = [np.random.normal(self.args.eps1_mean, self.args.eps1_sig, self.lattice1_sites),
-                                   np.zeros(
-                                       self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
+                                   np.zeros(self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
         else:
             self.lattice_energy = [np.random.uniform(self.args.eps1_min, self.args.eps1_max, self.lattice1_sites),
-                                   np.zeros(
-                                       self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
+                                   np.zeros(self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
 
         for i, site in enumerate(self.lattice_energy[1]):
             self.lattice_energy[1][i] = self.eps2
+
+        print(self.lattice_energy)
 
         self.kb = 8.617e-5  # Boltzmann constant in eV/K
         self.T = self.args.T  # Temperature in K
@@ -88,11 +87,12 @@ class MonteCarlo:
 
     def calculate_h(self, mu):
         """
-        Calculates the hamiltonian.
+        Calculates the hamiltonian of the whole lattice.
         """
         N1 = np.sum(self.lattice[0])
         N2 = np.sum(self.lattice[1])
 
+        # Multiplies the occupation number by the energy of each site.
         l1_h = np.sum(np.multiply(self.lattice[0], self.lattice_energy[0]))
         l2_h = np.sum(np.multiply(self.lattice[1], self.lattice_energy[1]))
 
@@ -101,6 +101,9 @@ class MonteCarlo:
         return h
 
     def calculate_u(self):
+        """
+        Calculates the Internal energy of the whole lattice.
+        """
         l1_u = np.sum(np.multiply(self.lattice[0], self.lattice_energy[0]))
         l2_u = np.sum(np.multiply(self.lattice[1], self.lattice_energy[1]))
         u = l1_u + l2_u
@@ -108,6 +111,10 @@ class MonteCarlo:
         return u
 
     def plot_results(self, results_array):
+        """
+        Plots all of the parameters of interest.
+        """
+
         plt.rcParams['font.size'] = 12
         plt.rcParams['axes.linewidth'] = 2
 
@@ -118,11 +125,10 @@ class MonteCarlo:
                                                                "Partial molar entropy",
                                                                "dq/de",
                                                                "Partial molar enthalpy"])
-
         cwd = os.getcwd()
-        # path = cwd + "/Na_monte_carlo_results.csv"
-        results_df.to_csv("C:/Users/samaf/OneDrive/Desktop/Simulation Projects/Na/Na_monte_carlo_results.csv",
-                          index=False)
+        path = cwd + "/results"
+        Path(path).mkdir(parents=True, exist_ok=True)
+        results_df.to_csv(path + "/Na_monte_carlo_results.csv", index=False)
 
         fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
@@ -150,38 +156,43 @@ class MonteCarlo:
         ax3.set_ylabel('dq/de')
         ax4.set_ylabel('Partial molar enthalpy [eV/Na site]')
 
-        parameter_file = open("C:/Users/samaf/OneDrive/Desktop/Simulation Projects/Na/Input_arguments.txt", "w")
+        parameter_file = open(path + "/Input_arguments.txt", "w")
         parameter_file.write(str(self.args))
         parameter_file.close()
 
         # fig_path = cwd + "/Na_plot_results.png"
-        plt.savefig("C:/Users/samaf/OneDrive/Desktop/Simulation Projects/Na/Na_monte_carlo_plot.png")
+        plt.savefig(path + "/Na_monte_carlo_plot.png")
         plt.show()
 
     def monte_carlo(self, mu):
-        rand_l = random.random()
+        """
+        Main function - metropolis monte carlo algorithm
+        """
+
+        rand_l = random.random()  # Random number between 0 and 1
         if rand_l < self.args.l:
             lattice_index = 0
         else:
             lattice_index = 1
 
-        random_index = random.randint(0, np.size(self.lattice[lattice_index]) - 1)
+        random_index = random.randint(0, np.size(self.lattice[lattice_index]) - 1)  # Selects a site depending which layer we are in.
 
-        current_h = self.calculate_h(mu)
+        current_h = self.calculate_h(mu)  # Calculates the hamiltonian before the swap.
+
         # Perform a swap
         if self.lattice[lattice_index][random_index] == 0:
             self.lattice[lattice_index][random_index] = 1
         else:
             self.lattice[lattice_index][random_index] = 0
 
-        new_h = self.calculate_h(mu)
+        new_h = self.calculate_h(mu)  # New hamiltonian after the swap.
         delta_h = new_h - current_h
 
         if delta_h > 0:
             rand_p = random.random()
             p = math.exp(-delta_h / (self.kb * self.T))
             if rand_p > p:
-                # Perform a swap
+                # Perform a swap - Overall we didn't swap the occupation number.
                 if self.lattice[lattice_index][random_index] == 0:
                     self.lattice[lattice_index][random_index] = 1
                 else:
@@ -190,10 +201,10 @@ class MonteCarlo:
     def run_simulation(self):
         rows = len(self.args.mu_list) - 1
         row_count = 0
-        results_array = np.zeros((rows + 1, 7))  # Columns for delta S, x, mu, sl1 mole fraction, sl2 mole fraction
+        results_array = np.zeros((rows + 1, 7))  # Columns for delta S, x, mu, enthalpy, etc.
 
         average_rows = self.args.mcs / self.args.sample_frequency
-        data_array = np.zeros((6, int(average_rows)))
+        data_array = np.zeros((6, int(average_rows)))  # Records the parameters at the sample frequency
 
         for mu in self.args.mu_list:
             print("Chemical potential:", mu)
@@ -202,6 +213,7 @@ class MonteCarlo:
             for i in range(self.args.mcs):
                 self.monte_carlo(mu)
 
+            # Runs the averaging steps.
             data_count = 0
             for i in range(self.args.mcs):
                 self.monte_carlo(mu)
@@ -223,8 +235,7 @@ class MonteCarlo:
             mean_x1 = np.average(data_array[4]) / self.lattice1_sites
             mean_x2 = np.average(data_array[5]) / self.lattice2_sites
             mean_x = mean_n / self.args.sites
-            variance = np.var(data_array[1])
-            # variance = mean_nn - mean_n ** 2
+            variance = mean_nn - mean_n ** 2
             cov_un = mean_un - (mean_u * mean_n)
 
             print('Interlayer mole fraction:', mean_x1, 'Nanopore mole fraction:', mean_x2, 'Total mole fraction:',

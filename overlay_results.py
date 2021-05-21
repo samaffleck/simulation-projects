@@ -9,39 +9,39 @@ class DisplayResults:
         pass
 
     def display(self):
-        df1 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_uniform_4.csv")  # black line
-        df2 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_normal_7.csv")  # green line
-        df3 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_uniform_3,3.csv")  # blue line
+        df1 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_uniform_2,2.csv")  # black line
+        df2 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Experimental_data.csv")  # green line
+        #df3 = pd.read_csv(r"C:\Users\samaf\OneDrive\Desktop\Simulation Projects\Na\Na_monte_carlo_results_uniform_3,3.csv")  # blue line
 
         fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
         ax1 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
                               markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
         df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-                 markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
-        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-                 markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
+                 markersize=2, ax=axes[0, 0], x='x', y='OCV')
+        #df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
+        #         markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
 
         ax2 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
                               markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
         df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-                 markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
-        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-                 markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
+                 markersize=2, ax=axes[0, 1], x='x', y='Entropy dS/dx')
+        #df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
+        #         markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
 
         ax3 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
                               markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
         df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-                              markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
-        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-                              markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
+                              markersize=2, ax=axes[1, 0], x='OCV', y='dQdV')
+        #df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
+        #                      markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
 
         ax4 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
                               markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
         df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-                              markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
-        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-                 markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
+                              markersize=2, ax=axes[1, 1], x='x', y='Enthalpy dH/dx')
+        #df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
+        #         markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
 
         ax1.set_xlim([0, 1])
         ax2.set_xlim([0, 1])
