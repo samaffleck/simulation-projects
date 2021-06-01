@@ -1,0 +1,1 @@
+Namespace(sites=500, l=0.3, mcs=500000, eps1=-0.377, delE=-0.25, g2=0, g3=0, a=0.0, b=1.5, c=1.0, sample_frequency=200, start_mu=-0.8, finish_mu=0.0, step_chem=0.04, T=288, eps1_max=-0.077, eps1_min=-0.677, eps1_mean=-0.377, eps1_sig=0.1)
