@@ -22,11 +22,11 @@ class MonteCarlo:
                                  help='Number of Monte Carlo steps per site', default=500)
         self.parser.add_argument('--l', type=float, metavar='', help='Fraction of total sites in the interlayers',
                                  default=0.3)
-        #self.parser.add_argument('--mcs', type=int, metavar='', help='Number of monte carlo steps', default=1000000)
+        # self.parser.add_argument('--mcs', type=int, metavar='', help='Number of monte carlo steps', default=1000000)
         self.parser.add_argument('--eps1', type=float, metavar='', help='Point interaction term for interlayers in eV',
                                  default=-0.377)
         self.parser.add_argument('--eps2', type=float, metavar='',
-                                 help='Point term for nanopores - priori heterogeneity in eV', default=-0.17)
+                                 help='Point term for nanopores - priori heterogeneity in eV', default=-0.07)
         self.parser.add_argument('--g2', type=float, metavar='', help='g2 term', default=0)
         self.parser.add_argument('--g3', type=float, metavar='', help='g3 term', default=0)
         self.parser.add_argument('--a', type=float, metavar='', help='a term', default=0.0)
@@ -47,19 +47,27 @@ class MonteCarlo:
                                  default=-0.377)
         self.parser.add_argument('--eps1_sig', type=float, metavar='',
                                  help='Standard deviation for the point values for interlayers', default=0.1)
+        self.parser.add_argument('--eps1_low', type=float, metavar='',
+                                 help='Most negative interlayer energy', default=-1.1)
+        self.parser.add_argument('--eps1_high', type=float, metavar='',
+                                 help='Most positive interlayer energy', default=-0.1)
         self.parser.add_argument('--mu_list', type=float, nargs='+', metavar='',
                                  help='List of chemical potentials to loop through',
-                                 default=[-1.0, -0.99, -0.98, -0.97, -0.96, -0.95, -0.92, -0.88, -0.84, -0.80, -0.76,
+                                 default=[-1.2, -1.16, -1.12, -1.08, -1.04, -1.0, -0.96, -0.92, -0.88, -0.84, -0.80, -0.76,
                                           -0.72, -0.68, -0.64, -0.60,
                                           -0.56, -0.52, -0.5, -0.48, -0.46, -0.44, -0.42, -0.4, -0.38, -0.36, -0.34,
                                           -0.32, -0.3, -0.28, -0.26, -0.24, -0.22, -0.20, -0.18, -0.16, -0.14, -0.13,
                                           -0.12, -0.11, -0.10, -0.09, -0.08, -0.07, -0.06, -0.04, -0.02, 0.0])
         self.parser.add_argument('--distribution', type=int, metavar='', help='Type of distribution: 0:Uniform, '
-                                                                              '1:Normal', default=0)
+                                                                              '1:Normal 2:Power distribution 3: Triangular', default=0)
 
         self.args = self.parser.parse_args()
 
+        self.eps1 = self.args.eps1_mean
         self.eps2 = self.args.eps2  # Constant point value for the nanopores.
+        self.a = 10
+        self.minp = -3
+        self.maxp = -0.377
 
         self.lattice1_sites = int(self.args.sites * self.args.l)  # Number of sites in the interlayers.
         self.lattice2_sites = self.args.sites - self.lattice1_sites  # Number of sites in the nanopores.
@@ -70,10 +78,20 @@ class MonteCarlo:
         # Checks what distribution we want to use and initialises randomly the point energies for each lattice.
         if self.args.distribution == 1:
             self.lattice_energy = [np.random.normal(self.args.eps1_mean, self.args.eps1_sig, self.lattice1_sites),
-                                   np.zeros(self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
+                                   np.zeros(
+                                       self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
         elif self.args.distribution == 0:
             self.lattice_energy = [np.random.uniform(self.args.eps1_min, self.args.eps1_max, self.lattice1_sites),
-                                   np.zeros(self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
+                                   np.zeros(
+                                       self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
+        elif self.args.distribution == 2:
+            self.lattice_energy = [np.random.power(self.a, self.lattice1_sites) * -1 * (self.minp - self.maxp) + self.minp,
+                                   np.zeros(
+                                       self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
+        elif self.args.distribution == 3:
+            self.lattice_energy = [np.random.triangular(self.args.eps1_low, self.args.eps1_high, self.args.eps1_high, self.lattice1_sites),
+                                   np.zeros(
+                                       self.lattice2_sites)]  # Stores the point energy for every site in the lattice.
 
         for i, site in enumerate(self.lattice_energy[1]):
             self.lattice_energy[1][i] = self.eps2
@@ -112,7 +130,7 @@ class MonteCarlo:
 
         return u
 
-    def plot_results(self, results_array):
+    def plot_results(self, results_array, avrN_data, avrU_data):
         """
         Plots all of the parameters of interest.
         """
@@ -127,25 +145,44 @@ class MonteCarlo:
                                                                "Partial molar entropy",
                                                                "dq/de",
                                                                "Partial molar enthalpy"])
+        avrN_df = pd.DataFrame(data=avrN_data)
+        avrU_df = pd.DataFrame(data=avrU_data)
+
         cwd = os.getcwd()
         path = cwd + "/results"
         Path(path).mkdir(parents=True, exist_ok=True)
         results_df.to_csv(path + "/Na_monte_carlo_results.csv", index=False)
+        avrU_df.to_csv(path + "/average_U.csv")
+        avrN_df.to_csv(path + "/average_N.csv")
+
+        dfE = pd.read_csv(path + "/experimental_data.csv")  # gets experimental data
 
         fig, axes = plt.subplots(nrows=3, ncols=2, constrained_layout=True)
 
         ax1 = results_df.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black',
                               markersize=4, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
+        dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
+                 markersize=2, ax=axes[0, 0], x='x', y='OCV')
+
         ax2 = results_df.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black',
                               markersize=4, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
+        dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
+                 markersize=2, ax=axes[0, 1], x='x', y='Entropy dS/dx')
+
         ax3 = results_df.plot(linestyle='-', color='blue', lw=0.5, marker='o', markeredgecolor='black',
                               markersize=4, ax=axes[1, 0], x='Chemical potential', y='dq/de')
+        dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
+                 markersize=2, ax=axes[1, 0], x='OCV', y='dQdV')
+
         ax4 = results_df.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='black',
                               markersize=4, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
+        dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
+                 markersize=2, ax=axes[1, 1], x='x', y='Enthalpy dH/dx')
+
         ax5 = results_df.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='green',
                               markersize=4, ax=axes[2, 1], x='Total mole fraction', y='Interlayer mole fraction')
         results_df.plot(linestyle='-', color='black', lw=0.5, marker='o', markeredgecolor='blue',
-                    markersize=4, ax=axes[2, 1], x='Total mole fraction', y='Nanopore mole fraction')
+                        markersize=4, ax=axes[2, 1], x='Total mole fraction', y='Nanopore mole fraction')
 
         ax1.set_xlim([0, 1])
         ax2.set_xlim([0, 1])
@@ -164,9 +201,17 @@ class MonteCarlo:
         ax4.set_ylabel('Partial molar enthalpy [eV/Na site]')
 
         if self.args.distribution == 0:
-            plt.suptitle("Distribution: Uniform | Sites: {} | Steps per site: {} | L: {} | eps1_min: {} | eps1_max: {}".format(self.args.sites, self.args.sps, self.args.l, self.args.eps1_min, self.args.eps1_max))
+            plt.suptitle(
+                "Distribution: Uniform | Sites: {} | Steps per site: {} | L: {} | eps1_min: {} | eps1_max: {} | eps2: {}".format(
+                    self.args.sites, self.args.sps, self.args.l, self.args.eps1_min, self.args.eps1_max, self.args.eps2))
         elif self.args.distribution == 1:
-            plt.suptitle("Distribution: Normal | Sites: {} | Steps per site: {} | L: {} | eps1_mean: {} | eps1_sig: {}".format(self.args.sites, self.args.sps, self.args.l, self.args.eps1_mean, self.args.eps1_sig))
+            plt.suptitle(
+                "Distribution: Normal | Sites: {} | Steps per site: {} | L: {} | eps1_mean: {} | eps1_sig: {} | eps2: {}".format(
+                    self.args.sites, self.args.sps, self.args.l, self.args.eps1_mean, self.args.eps1_sig, self.args.eps2))
+        elif self.args.distribution == 3:
+            plt.suptitle(
+                "Distribution: Triangle | Sites: {} | Steps per site: {} | L: {} | eps1_low: {} | eps1_high: {} | eps2: {}".format(
+                    self.args.sites, self.args.sps, self.args.l, self.args.eps1_low, self.args.eps1_high, self.args.eps2))
 
         parameter_file = open(path + "/Input_arguments.txt", "w")
         parameter_file.write(str(self.args))
@@ -177,6 +222,9 @@ class MonteCarlo:
         # fig_path = cwd + "/Na_plot_results.png"
         plt.savefig(path + "/Na_monte_carlo_plot.png")
         plt.show()
+
+    def site_h(self, mu, lattice_index, random_index):
+        return self.lattice[lattice_index][random_index] * self.lattice_energy[lattice_index][random_index] - self.lattice[lattice_index][random_index] * mu
 
     def monte_carlo(self, mu):
         """
@@ -189,9 +237,11 @@ class MonteCarlo:
         else:
             lattice_index = 1
 
-        random_index = random.randint(0, np.size(self.lattice[lattice_index]) - 1)  # Selects a site depending which layer we are in.
+        random_index = random.randint(0, np.size(
+            self.lattice[lattice_index]) - 1)  # Selects a site depending which layer we are in.
 
-        current_h = self.calculate_h(mu)  # Calculates the hamiltonian before the swap.
+        #current_h = self.calculate_h(mu)  # Calculates the hamiltonian before the swap.
+        current_h = self.site_h(mu, lattice_index, random_index)
 
         # Perform a swap
         if self.lattice[lattice_index][random_index] == 0:
@@ -199,7 +249,8 @@ class MonteCarlo:
         else:
             self.lattice[lattice_index][random_index] = 0
 
-        new_h = self.calculate_h(mu)  # New hamiltonian after the swap.
+        #new_h = self.calculate_h(mu)  # New hamiltonian after the swap.
+        new_h = self.site_h(mu, lattice_index, random_index)
         delta_h = new_h - current_h
 
         if delta_h > 0:
@@ -221,12 +272,25 @@ class MonteCarlo:
         average_rows = steps / self.args.sample_frequency
         data_array = np.zeros((6, int(average_rows)))  # Records the parameters at the sample frequency
 
-        for mu in self.args.mu_list:
+        avrU_array = np.zeros(
+            (len(self.args.mu_list), int(average_rows)))  # Records averaging decay of U for all chemical potentials.
+        avrN_array = np.zeros(
+            (len(self.args.mu_list), int(average_rows)))  # Records averaging decay of n for all chemical potentials.
+        monitor_averaging = False  # True if you want to save the U and N during equilibration (Default is False).
+
+        for count, mu in enumerate(self.args.mu_list):
             print("Chemical potential:", mu)
 
             # Runs equilibration steps
+            avr_count = 0
             for i in range(steps):
                 self.monte_carlo(mu)
+                if i % self.args.sample_frequency == 0 and monitor_averaging == True:
+                    u = self.calculate_u()
+                    n = np.sum(self.lattice[0]) + np.sum(self.lattice[1])
+                    avrU_array[count][avr_count] = u
+                    avrN_array[count][avr_count] = n
+                    avr_count += 1
 
             # Runs the averaging steps.
             data_count = 0
@@ -267,7 +331,7 @@ class MonteCarlo:
             results_array[row_count, 6] = cov_un / variance  # Partial molar enthalpy
             row_count += 1
 
-        self.plot_results(results_array)
+        self.plot_results(results_array, avrN_array, avrU_array)
 
 
 if __name__ == '__main__':
