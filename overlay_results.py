@@ -12,9 +12,9 @@ class DisplayResults:
     def display(self):
         cwd = os.getcwd()
         path = cwd + "/results"
-        df1 = pd.read_csv(path + "/Na_monte_carlo_results_tri3.csv")  # black line
-        df2 = pd.read_csv(path + "/Na_monte_carlo_results_ss2.csv")  # green line
-        df3 = pd.read_csv(path + "/Na_monte_carlo_results_sites2.csv")  # blue line
+        df1 = pd.read_csv(path + "/Na_monte_carlo_results_tri5.csv")  # black line
+        df2 = pd.read_csv(path + "/Na_monte_carlo_results_tri7.csv")  # green line
+        df3 = pd.read_csv(path + "/Na_monte_carlo_results_tri6.csv")  # blue line
         dfE = pd.read_csv(path + "/experimental_data.csv")  # grey line
 
         points = 1000
@@ -27,51 +27,51 @@ class DisplayResults:
         T = 288  # K
         for index, x in enumerate(x_pos):
             if x < l:
-                s_y[index] = R * (x * np.log(x/l) - (x-l)*np.log((l-x)/l))
+                s_y[index] = (R * (x * np.log(x/l) - (x-l)*np.log((l-x)/l))) * T
                 y_pos[index] = T * R * (np.log(x/l) - np.log((l-x)/l))
             else:
-                s_y[index] = R * l * ((x/l - 1) * np.log(x/l - 1) + (1-x)/l * np.log((1-x)/l) - (1-l)/l * np.log((1-l)/l))
+                s_y[index] = (R * l * ((x/l - 1) * np.log(x/l - 1) + (1-x)/l * np.log((1-x)/l) - (1-l)/l * np.log((1-l)/l))) * T
                 y_pos[index] = T * R * (np.log(x/l - 1) - np.log(1/l - x/l))
 
         fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
         ax1 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
                               markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
-        #df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-        #         markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
-        #df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-        #         markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
+        df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
+                 markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
+        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
+                 markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
         dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
                  markersize=2, ax=axes[0, 0], x='x', y='OCV')
 
         ax2 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
                               markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
-        #df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-        #         markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
-        #df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-        #         markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
+        df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
+                 markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
+        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
+                 markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
         dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
                  markersize=2, ax=axes[0, 1], x='x', y='Entropy dS/dx')
 
-        #ax2.plot(x_pos, y_pos)  # Plots the ideal p.m. entropy
+        ax2.plot(x_pos, y_pos, linewidth=0.4)  # Plots the ideal p.m. entropy
 
-        #axes[1, 0].plot(s_x, s_y)  # Plots the entropy.
+        # axes[1, 0].plot(s_x, s_y)  # Plots the entropy.
 
         ax3 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
                        markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
-        #df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-        #         markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
-        #df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-        #         markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
+        df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
+                 markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
+        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
+                 markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
         dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
                  markersize=2, ax=axes[1, 0], x='OCV', y='dQdV')
 
         ax4 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
                        markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
-        #df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-        #         markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
-        #df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-        #         markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
+        df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
+                 markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
+        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
+                 markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
         dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
                  markersize=2, ax=axes[1, 1], x='x', y='Enthalpy dH/dx')
 
@@ -102,7 +102,7 @@ class DisplayResults:
         path = cwd + "/results"
         df1 = pd.read_csv(path + "/average_U.csv")  # black line
         df2 = pd.read_csv(path + "/average_N.csv")  # green line
-        chem = 10  # from 0 to 46
+        chem = 1  # from 0 to 35
 
         s1 = df1.iloc[chem]
         s1.plot()
@@ -125,7 +125,7 @@ class DisplayResults:
 
 if __name__ == '__main__':
     dr = DisplayResults()
-    dr.display()
-    #dr.display_averaging()
+    #dr.display()
+    dr.display_averaging()
     #dr.test_uniform()
     #dr.test_triangular()
