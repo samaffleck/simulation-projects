@@ -12,7 +12,7 @@ class DisplayResults:
     def display(self):
         cwd = os.getcwd()
         path = cwd + "/results"
-        df1 = pd.read_csv(path + "/Na_monte_carlo_results_tri5.csv")  # black line
+        df1 = pd.read_csv(path + "/Na_monte_carlo_results_31f99357-c919-11eb-aab9-505bc2f6ccb0.csv")  # black line
         df2 = pd.read_csv(path + "/Na_monte_carlo_results_tri7.csv")  # green line
         df3 = pd.read_csv(path + "/Na_monte_carlo_results_tri6.csv")  # blue line
         dfE = pd.read_csv(path + "/experimental_data.csv")  # grey line
@@ -118,14 +118,16 @@ class DisplayResults:
         plt.show()
 
     def test_triangular(self):
-        h = plt.hist(np.random.triangular(-1, -0.17, -0.17, 100000), bins=200,
-                     density=True)
+        s = np.random.triangular(0, 1, 1, 100000)
+        plt.hist(s, bins=100, density=True)
+        plt.xlabel('Interlayer point energy [eV]')
+        plt.ylabel('Frequency')
         plt.show()
 
 
 if __name__ == '__main__':
     dr = DisplayResults()
-    #dr.display()
-    dr.display_averaging()
+    dr.display()
+    #dr.display_averaging()
     #dr.test_uniform()
     #dr.test_triangular()
