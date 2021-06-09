@@ -1,7 +1,7 @@
 """
 Monte carlo simulation for the insertion of sodium into hard carbon.
 """
-
+import uuid
 import numpy as np
 import random
 import math
@@ -106,31 +106,6 @@ class MonteCarlo:
         self.kb = 8.617e-5  # Boltzmann constant in eV/K
         self.T = self.args.T  # Temperature in K
 
-    def calculate_u(self):
-        """
-        Calculates the Internal energy of the whole lattice.
-        """
-        if self.args.distribution == 4:
-            N1 = np.sum(self.lattice[0])  # Number of filled interlayer sites
-            N2 = np.sum(self.lattice[1])  # Number of filled nanopores
-            n1 = N1/self.lattice1_sites  # Mole fraction of interlayers
-            n2 = N2/self.lattice2_sites  # Mole fraction of nanopores
-            M2 = self.lattice2_sites
-
-            nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
-            eps1 = self.args.eps1 + self.args.a * np.exp(-self.args.b*n1**self.args.c)
-            return eps1 * N1 + nano_term
-        else:
-            #l1_u = np.sum(np.multiply(self.lattice[0], self.lattice_energy[0]))
-            #l2_u = np.sum(np.multiply(self.lattice[1], self.lattice_energy[1]))
-            #u = l1_u + l2_u
-            u = 0
-            for occ, eps in zip(self.lattice[0], self.lattice_energy[0]):
-                u += occ * eps
-            for occ, eps in zip(self.lattice[1], self.lattice_energy[1]):
-                u += occ * eps
-            return u
-
     def plot_results(self, results_array, avrN_data, avrU_data):
         """
         Plots all of the parameters of interest.
@@ -153,12 +128,13 @@ class MonteCarlo:
         avrN_df = pd.DataFrame(data=avrN_data)
         avrU_df = pd.DataFrame(data=avrU_data)
 
+        uid = str(uuid.uuid1())
         cwd = os.getcwd()
         path = cwd + "/results"
         Path(path).mkdir(parents=True, exist_ok=True)
-        results_df.to_csv(path + "/Na_monte_carlo_results.csv", index=False)
-        avrU_df.to_csv(path + "/average_U.csv")
-        avrN_df.to_csv(path + "/average_N.csv")
+        results_df.to_csv(path + "/Na_monte_carlo_results_" + uid + ".csv", index=False)
+        #avrU_df.to_csv(path + "/average_U.csv")
+        #avrN_df.to_csv(path + "/average_N.csv")
 
         dfE = pd.read_csv(path + "/experimental_data.csv")  # gets experimental data
 
@@ -248,17 +224,20 @@ class MonteCarlo:
                 "Exponential equation | Sites: {} | Steps per site: {} | L: {} | eps1: {} | eps2: {}".format(
                     self.args.sites, self.args.sps, self.args.l, self.args.eps1, self.args.eps2))
 
-        parameter_file = open(path + "/Input_arguments.txt", "w")
+        parameter_file = open(path + "/Input_arguments_" + uid + ".txt", "w")
         parameter_file.write(str(self.args))
         parameter_file.close()
 
         manager = plt.get_current_fig_manager()
         manager.resize(*manager.window.maxsize())
         # fig_path = cwd + "/Na_plot_results.png"
-        plt.savefig(path + "/Na_monte_carlo_plot.png")
+        #plt.savefig(path + "/Na_monte_carlo_plot_" + uid + ".png")
         plt.show()
 
-    def site_h(self, mu, lattice_index, random_index):
+    def calculate_u(self):
+        """
+        Calculates the Internal energy of the whole lattice.
+        """
         if self.args.distribution == 4:
             N1 = np.sum(self.lattice[0])  # Number of filled interlayer sites
             N2 = np.sum(self.lattice[1])  # Number of filled nanopores
@@ -268,7 +247,31 @@ class MonteCarlo:
 
             nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
             eps1 = self.args.eps1 + self.args.a * np.exp(-self.args.b*n1**self.args.c)
-            return eps1 * N1 + nano_term - mu * (N1 + N2)
+            return eps1 * N1 + nano_term
+        else:
+            #l1_u = np.sum(np.multiply(self.lattice[0], self.lattice_energy[0]))
+            #l2_u = np.sum(np.multiply(self.lattice[1], self.lattice_energy[1]))
+            #u = l1_u + l2_u
+            u = 0
+            for occ, eps in zip(self.lattice[0], self.lattice_energy[0]):
+                u += occ * eps
+            for occ, eps in zip(self.lattice[1], self.lattice_energy[1]):
+                u += occ * eps
+            return u
+
+    def site_h(self, mu, lattice_index, random_index):
+        if self.args.distribution == 4:
+            if lattice_index == 0:  # interlayers
+                N1 = np.sum(self.lattice[0])  # Number of filled interlayer sites
+                n1 = N1/self.lattice1_sites  # Mole fraction of interlayers
+                eps1 = self.args.eps1 + self.args.a * np.exp(-self.args.b*n1**self.args.c)
+                return eps1 * N1 - self.lattice[lattice_index][random_index] * mu
+            else:
+                N2 = np.sum(self.lattice[1])  # Number of filled nanopores
+                n2 = N2/self.lattice2_sites  # Mole fraction of nanopores
+                M2 = self.lattice2_sites
+                nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
+                return nano_term - self.lattice[lattice_index][random_index] * mu
         else:
             return self.lattice[lattice_index][random_index] * self.lattice_energy[lattice_index][random_index] - self.lattice[lattice_index][random_index] * mu
 
