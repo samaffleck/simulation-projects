@@ -12,9 +12,9 @@ class DisplayResults:
     def display(self):
         cwd = os.getcwd()
         path = cwd + "/results"
-        df1 = pd.read_csv(path + "/Na_monte_carlo_results_31f99357-c919-11eb-aab9-505bc2f6ccb0.csv")  # black line
-        df2 = pd.read_csv(path + "/Na_monte_carlo_results_tri7.csv")  # green line
-        df3 = pd.read_csv(path + "/Na_monte_carlo_results_tri6.csv")  # blue line
+        df1 = pd.read_csv(path + "/Na_monte_carlo_results_e3fe6538-ca27-11eb-b744-e41d2d1520d0_s1.csv")  # black line
+        df2 = pd.read_csv(path + "/Na_monte_carlo_results_757edfb0-ca28-11eb-82ce-e41d2d1520d0_s2.csv")  # green line
+        df3 = pd.read_csv(path + "/Na_monte_carlo_results_59c26c26-ca30-11eb-acdb-e41d2d1520d0_e3.csv")  # blue line
         dfE = pd.read_csv(path + "/experimental_data.csv")  # grey line
 
         points = 1000
@@ -102,7 +102,7 @@ class DisplayResults:
         path = cwd + "/results"
         df1 = pd.read_csv(path + "/average_U.csv")  # black line
         df2 = pd.read_csv(path + "/average_N.csv")  # green line
-        chem = 1  # from 0 to 35
+        chem = 15  # from 0 to 35
 
         s1 = df1.iloc[chem]
         s1.plot()
@@ -118,8 +118,8 @@ class DisplayResults:
         plt.show()
 
     def test_triangular(self):
-        s = np.random.triangular(0, 1, 1, 100000)
-        plt.hist(s, bins=100, density=True)
+        s = np.random.triangular(-1.3, -0.1, -0.1, 10000000)
+        plt.hist(s, bins=100, density=False)
         plt.xlabel('Interlayer point energy [eV]')
         plt.ylabel('Frequency')
         plt.show()

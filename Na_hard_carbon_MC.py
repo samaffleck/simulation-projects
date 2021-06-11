@@ -37,13 +37,13 @@ class MonteCarlo:
                                  help='Number of mcs before a sample is taken', default=200)
         self.parser.add_argument('--T', type=float, metavar='', help='Temperature', default=288)
         self.parser.add_argument('--eps1_max', type=float, metavar='', help='Maximum point value for interlayers (uniform)',
-                                 default=-0.177)
+                                 default=-0.12)
         self.parser.add_argument('--eps1_min', type=float, metavar='', help='Minimum point value for interlayers (uniform)',
-                                 default=-0.577)
+                                 default=-1.05)
         self.parser.add_argument('--eps1_mean', type=float, metavar='', help='Mean value for interlayers (norm)',
-                                 default=-0.377)
+                                 default=-0.352)
         self.parser.add_argument('--eps1_sig', type=float, metavar='',
-                                 help='Standard deviation for the point values for interlayers (norm)', default=0.1)
+                                 help='Standard deviation for the point values for interlayers (norm)', default=0.3)
         self.parser.add_argument('--eps1_low', type=float, metavar='',
                                  help='Most negative interlayer energy (tri)', default=-1.3)
         self.parser.add_argument('--eps1_high', type=float, metavar='',
