@@ -1,7 +1,12 @@
+"""
+This code plots the csv results from the hard carbon monte carlo simulations.
+"""
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from scipy import integrate
 
 
 class DisplayResults:
@@ -12,90 +17,136 @@ class DisplayResults:
     def display(self):
         cwd = os.getcwd()
         path = cwd + "/results"
-        df1 = pd.read_csv(path + "/Na_monte_carlo_results_e3fe6538-ca27-11eb-b744-e41d2d1520d0_s1.csv")  # black line
-        df2 = pd.read_csv(path + "/Na_monte_carlo_results_757edfb0-ca28-11eb-82ce-e41d2d1520d0_s2.csv")  # green line
-        df3 = pd.read_csv(path + "/Na_monte_carlo_results_59c26c26-ca30-11eb-acdb-e41d2d1520d0_e3.csv")  # blue line
+        dataframes = ["/Na_monte_carlo_results_tri9.csv"]
+
         dfE = pd.read_csv(path + "/experimental_data.csv")  # grey line
 
+        # Rescale the x-axis of the experimental data.
+        ratio_of_capacities = 272.4 / 338.313338
+        dfE["x_real"] = ratio_of_capacities * dfE["x"]
+
+        # Second derivative of enthalpy for experimental data.
+        secder_enthalpy_experimental_x = np.gradient(np.array(dfE['Enthalpy dH/dx']), np.array(dfE['x']))
+        secder_enthalpy_experimental_xreal = np.gradient(np.array(dfE['Enthalpy dH/dx']), np.array(dfE['x_real']))
+        dfE['secder enthalpy x'] = secder_enthalpy_experimental_x
+        dfE['secder enthalpy xreal'] = secder_enthalpy_experimental_xreal
+
+        # vertical shift on p.m. entropy for vibrational effect
+        vibrational_shift = 0.0149  # eV K
+        dfE["Entropy dS/dx"] = dfE["Entropy dS/dx"] - vibrational_shift
+
+        # Calculates the analytical solution
         points = 1000
         x_pos = np.linspace(0, 1, points)
         y_pos = np.linspace(0, 1, points)
         s_x = np.linspace(0, 1, points)
         s_y = np.linspace(0, 1, points)
-        l = 0.3
+        l = 0.329217689
         R = -0.0000862  # eV/K.Site
         T = 288  # K
         for index, x in enumerate(x_pos):
             if x < l:
-                s_y[index] = (R * (x * np.log(x/l) - (x-l)*np.log((l-x)/l))) * T
-                y_pos[index] = T * R * (np.log(x/l) - np.log((l-x)/l))
+                s_y[index] = (R * (x * np.log(x / l) - (x - l) * np.log((l - x) / l))) * T
+                y_pos[index] = T * R * (np.log(x / l) - np.log((l - x) / l))
             else:
-                s_y[index] = (R * l * ((x/l - 1) * np.log(x/l - 1) + (1-x)/l * np.log((1-x)/l) - (1-l)/l * np.log((1-l)/l))) * T
-                y_pos[index] = T * R * (np.log(x/l - 1) - np.log(1/l - x/l))
+                s_y[index] = (R * l * (
+                            (x / l - 1) * np.log(x / l - 1) + (1 - x) / l * np.log((1 - x) / l) - (1 - l) / l * np.log(
+                        (1 - l) / l))) * T
+                y_pos[index] = T * R * (np.log(x / l - 1) - np.log(1 / l - x / l))
 
-        fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
+        # Create plot and formats
+        fig, axes = plt.subplots(nrows=3, ncols=2, constrained_layout=True)
+        plt.rc('legend', fontsize=8)
+        lw = 0.7  # Line width
 
-        ax1 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
-                              markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
-        df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-                 markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
-        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-                 markersize=2, ax=axes[0, 0], x='Total mole fraction', y='Chemical potential')
-        dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
-                 markersize=2, ax=axes[0, 0], x='x', y='OCV')
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[0, 0], x='x_real', y='OCV')
+        dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[0, 0], x='x', y='OCV')
 
-        ax2 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
-                              markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
-        df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-                 markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
-        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-                 markersize=2, ax=axes[0, 1], x='Total mole fraction', y='Partial molar entropy')
-        dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
-                 markersize=2, ax=axes[0, 1], x='x', y='Entropy dS/dx')
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[0, 1], x='x_real', y='Entropy dS/dx')
+        dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[0, 1], x='x', y='Entropy dS/dx')
 
-        ax2.plot(x_pos, y_pos, linewidth=0.4)  # Plots the ideal p.m. entropy
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[1, 0], x='OCV', y='dQdV')
 
-        # axes[1, 0].plot(s_x, s_y)  # Plots the entropy.
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[1, 1], x='x_real', y='Enthalpy dH/dx')
+        dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[1, 1], x='x', y='Enthalpy dH/dx')
 
-        ax3 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
-                       markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
-        df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-                 markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
-        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-                 markersize=2, ax=axes[1, 0], x='Chemical potential', y='dq/de')
-        dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
-                 markersize=2, ax=axes[1, 0], x='OCV', y='dQdV')
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[2, 1], x='x_real', y='secder enthalpy xreal')
+        dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[2, 1], x='x', y='secder enthalpy x')
 
-        ax4 = df1.plot(linestyle='-', color='black', lw=0.3, marker='o', markeredgecolor='black',
-                       markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
-        df2.plot(linestyle='-', color='green', lw=0.3, marker='o', markeredgecolor='green',
-                 markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
-        df3.plot(linestyle='-', color='blue', lw=0.3, marker='o', markeredgecolor='blue',
-                 markersize=2, ax=axes[1, 1], x='Total mole fraction', y='Partial molar enthalpy')
-        dfE.plot(linestyle='-', color='grey', lw=0.3, marker='o', markeredgecolor='grey',
-                 markersize=2, ax=axes[1, 1], x='x', y='Enthalpy dH/dx')
+        # Iterate through all the data to be plotted
+        for df in dataframes:
+            df1 = pd.read_csv(path + df)  # black line
 
-        ax1.set_xlim([0, 1])
-        ax2.set_xlim([0, 1])
-        ax3.set_xlim([0, 1])
-        ax4.set_xlim([0, 1])
+            # Integrates the p.m. entropy
+            entropy_list = integrate.cumtrapz(df1['Partial molar entropy'], df1['Total mole fraction'],
+                                              initial=0)  # Contains the entropy values
+            df1['Entropy'] = entropy_list
 
-        ax1.set_xlabel('Na content, x')
-        ax2.set_xlabel('Na content, x')
-        ax3.set_xlabel('Voltage V')
-        ax4.set_xlabel('Na content, x')
+            # Rescale voltage profile and p.m. enthalpy
+            df1["adjusted voltage"] = df1["Chemical potential"] * ratio_of_capacities
+            df1["adjusted enthalpy"] = df1["Partial molar enthalpy"] * ratio_of_capacities
+            df1["adjusted entropy"] = df1["Partial molar entropy"] * ratio_of_capacities
+            df1["adjusted dq/de"] = df1["dq/de"] * (1/ratio_of_capacities)**2
 
-        ax1.set_ylabel('Voltage [V]')
-        ax2.set_ylabel('dS/dx [eV/Na site]')
-        ax3.set_ylabel('dq/de')
-        ax4.set_ylabel('Partial molar enthalpy [eV/Na site]')
+            # Differentiate the p.m. enthalpy to get the second derivative.
+            pm_enthalpy = np.array(df1['adjusted enthalpy'])
+            mole_fraction = np.array(df1['Total mole fraction'])
+            secder_enthalpy = np.gradient(pm_enthalpy, mole_fraction)
+            df1['secder enthalpy'] = secder_enthalpy
 
-        # fig.suptitle('black: eps1=[0.123 to -0.477]\ngreen: eps1=[-0.077 to -0.677]\nblue: eps1=[-0.277 to -0.877]')
-        # ax1.legend(['Uniform distribution [0.077 to 0.677]', 'Normal distrubition, mu=0.377 sig=0.1'])
+            ax1 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+                           markersize=2, ax=axes[0, 0], x='Total mole fraction', y='adjusted voltage')
 
-        #plt.savefig(fig_path)
+            ax2 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+                           markersize=2, ax=axes[0, 1], x='Total mole fraction', y='adjusted entropy')
+
+            ax2.plot(x_pos, y_pos, linewidth=lw, color='red')  # Plots the ideal p.m. entropy
+
+            ax3 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+                           markersize=2, ax=axes[1, 0], x='Chemical potential', y='adjusted dq/de')
+
+            ax4 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+                           markersize=2, ax=axes[1, 1], x='Total mole fraction', y='adjusted enthalpy')
+
+            ax5 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+                           markersize=3, ax=axes[2, 1], x='Total mole fraction', y='secder enthalpy')
+
+            ax6 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+                           markersize=3, ax=axes[2, 0], x='Total mole fraction', y='Entropy')
+
+            ax6.plot(s_x, s_y, linewidth=lw, color='red')  # Plots the entropy.
+
+            ax1.set_xlim([0, 1])
+            ax2.set_xlim([0, 1])
+            ax3.set_xlim([0, 1])
+            ax4.set_xlim([0, 1])
+            ax5.set_xlim([0, 1])
+            ax6.set_xlim([0, 1])
+
+            ax1.set_xlabel('Na content $[x]$')
+            ax2.set_xlabel('Na content $[x]$')
+            ax3.set_xlabel('Voltage $[V]$')
+            ax4.set_xlabel('Na content $[x]$')
+            ax5.set_xlabel('Na content $[x]$')
+            ax6.set_xlabel('Na content $[x]$')
+
+            ax1.set_ylabel('Voltage $[V]$')
+            ax2.set_ylabel('dS/dx $[eV/site]$')
+            ax3.set_ylabel('dq/de $\mathregular{eV^{-1}}$')
+            ax4.set_ylabel('$dH/dx$ $[eV/site]$')
+            ax5.set_ylabel('$d^2H/dx^2$ $[eV/site]$')
+            ax6.set_ylabel('S $[eV/site]$')
+
+            # fig.suptitle('')
+            ax1.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
+            ax2.legend(
+                ['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data',  'Analytical solution'])
+            ax3.legend(['Experimental data', 'Monte Carlo data'])
+            ax4.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
+            ax5.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
+            ax6.legend(['Monte Carlo data', 'Analytical solution'])
+
         plt.show()
-
 
     def display_averaging(self):
         cwd = os.getcwd()
@@ -106,8 +157,6 @@ class DisplayResults:
 
         s1 = df1.iloc[chem]
         s1.plot()
-        #s2 = df2.iloc[chem]
-        #s2.plot()
 
         plt.show()
 
@@ -128,6 +177,7 @@ class DisplayResults:
 if __name__ == '__main__':
     dr = DisplayResults()
     dr.display()
+
     #dr.display_averaging()
     #dr.test_uniform()
     #dr.test_triangular()
