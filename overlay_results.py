@@ -17,10 +17,10 @@ class DisplayResults:
     def display(self):
         cwd = os.getcwd()
         path = cwd + "/results"
-        dataframes = ["/Na_monte_carlo_results_91eff520-d39e-11eb-bb5f-505bc2f6ccb0.csv"]
+        dataframes = ["/Na_monte_carlo_results_exp_9.csv"]
         colours = ['black', 'darkred', 'darkmagenta', 'darkturquoise', 'saddelbrown']
 
-        dfE = pd.read_csv(path + "/experimental_data.csv")  # grey line
+        dfE = pd.read_csv(path + "/experimental_data.csv")
 
         # Rescale the x-axis of the experimental data.
         ratio_of_capacities = 272.4 / 338.313338
@@ -33,8 +33,8 @@ class DisplayResults:
         dfE['secder enthalpy xreal'] = secder_enthalpy_experimental_xreal
 
         # vertical shift on p.m. entropy for vibrational effect
-        vibrational_shift = 0.0149  # eV K
-        dfE["Entropy dS/dx"] = dfE["Entropy dS/dx"] - vibrational_shift
+        vibrational_shift = 0.0134  # eV K
+        dfE["Entropy dS/dx"] = (dfE["Entropy dS/dx"]) - vibrational_shift * ratio_of_capacities
 
         # Integrates the p.m. entropy
         entropy_list_experimental = integrate.cumtrapz(dfE['Entropy dS/dx'], dfE['x_real'],
@@ -139,11 +139,11 @@ class DisplayResults:
             ax6.set_xlabel('Na content $[x]$')
 
             ax1.set_ylabel('Voltage $[V]$')
-            ax2.set_ylabel('dS/dx $[eV/site]$')
+            ax2.set_ylabel('dS/dx $[eV K/site]$')
             ax3.set_ylabel('dq/de $\mathregular{eV^{-1}}$')
             ax4.set_ylabel('$dH/dx$ $[eV/site]$')
             ax5.set_ylabel('$d^2H/dx^2$ $[eV/site]$')
-            ax6.set_ylabel('S $[eV/site]$')
+            ax6.set_ylabel('S $[eV K/site]$')
 
             # fig.suptitle('')
             ax1.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
