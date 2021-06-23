@@ -12,6 +12,7 @@ import os
 import argparse
 from pathlib import Path
 
+
 class MonteCarlo:
 
     def __init__(self):
@@ -28,7 +29,7 @@ class MonteCarlo:
         self.parser.add_argument('--eps2', type=float, metavar='',
                                  help='Point term for nanopores in eV', default=-0.021718645)
         self.parser.add_argument('--g2', type=float, metavar='', help='g2 term', default=-0.046075307)
-        self.parser.add_argument('--g3', type=float, metavar='', help='g3 term', default=0.032394847)
+        self.parser.add_argument('--g3', type=float, metavar='', help='g3 term', default=0.03)
         self.parser.add_argument('--a', type=float, metavar='', help='a term', default=-0.684477326)
         self.parser.add_argument('--b', type=float, metavar='', help='b term', default=1.873973403)
         self.parser.add_argument('--c', type=float, metavar='', help='c term', default=1.686422347)
@@ -36,17 +37,23 @@ class MonteCarlo:
                                  help='Number of mcs before a sample is taken', default=200)
         self.parser.add_argument('--T', type=float, metavar='', help='Temperature', default=288)
         self.parser.add_argument('--eps1_max', type=float, metavar='', help='Maximum point value for interlayers (uniform)',
-                                 default=-0.12)
+                                 default=0.5)
         self.parser.add_argument('--eps1_min', type=float, metavar='', help='Minimum point value for interlayers (uniform)',
-                                 default=-1.05)
+                                 default=-1.35)
         self.parser.add_argument('--eps1_mean', type=float, metavar='', help='Mean value for interlayers (norm)',
-                                 default=-0.352)
+                                 default=-0.42)
         self.parser.add_argument('--eps1_sig', type=float, metavar='',
-                                 help='Standard deviation for the point values for interlayers (norm)', default=0.3)
+                                 help='Standard deviation for the point values for interlayers (norm)', default=0.55)
         self.parser.add_argument('--eps1_low', type=float, metavar='',
                                  help='Most negative interlayer energy (tri)', default=-1.65)
         self.parser.add_argument('--eps1_high', type=float, metavar='',
                                  help='Most positive interlayer energy (tri)', default=0.08)
+        self.parser.add_argument('--eps1_power_low', type=float, metavar='',
+                                 help='Most negative interlayer energy (power)', default=-3.3)
+        self.parser.add_argument('--eps1_power_high', type=float, metavar='',
+                                 help='Most positive interlayer energy (power)', default=-0.06)
+        self.parser.add_argument('--eps1_power_a', type=float, metavar='',
+                                 help='Power constant for power distribution', default=6)
         self.parser.add_argument('--mu_list', type=float, nargs='+', metavar='',
                                  help='List of chemical potentials to loop through',
                                  default=[-1.6, -1.5, -1.4, -1.35, -1.3, -1.25, -1.2, -1.16, -1.12, -1.08, -1.04, -1.0,
@@ -69,9 +76,9 @@ class MonteCarlo:
         self.eps2 = self.args.eps2  # Point term for pores
 
         # Constants for the power distribution.
-        self.a = 10
-        self.minp = -3
-        self.maxp = -0.377
+        self.a = self.args.eps1_power_a
+        self.minp = self.args.eps1_power_low
+        self.maxp = self.args.eps1_power_high
 
         self.lattice1_sites = int(self.args.sites * self.args.l)  # Number of sites in the interlayers.
         self.lattice2_sites = self.args.sites - self.lattice1_sites  # Number of sites in the nanopores.
@@ -103,7 +110,7 @@ class MonteCarlo:
             for i, site in enumerate(self.lattice_energy[0]):
                 self.lattice_energy[0][i] = self.args.eps1
 
-        # Asigns constant point term for all nanopore sites.
+        # Assigns constant point term for all nanopore sites.
         for i, site in enumerate(self.lattice_energy[1]):
             self.lattice_energy[1][i] = self.eps2
 
@@ -147,7 +154,7 @@ class MonteCarlo:
             M2 = self.lattice2_sites
 
             nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
-            eps1 = self.args.eps1 + self.args.a * np.exp(-self.args.b*n1**self.args.c)
+            eps1 = self.args.eps1 + self.args.a * math.exp(-self.args.b*n1**self.args.c)
             return eps1 * N1 + nano_term
         else:
             u = 0
@@ -171,7 +178,14 @@ class MonteCarlo:
                 nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
                 return nano_term - self.lattice[lattice_index][random_index] * mu
         else:
-            return self.lattice[lattice_index][random_index] * self.lattice_energy[lattice_index][random_index] - self.lattice[lattice_index][random_index] * mu
+            if lattice_index == 0:  # interlayers
+                return self.lattice[lattice_index][random_index] * self.lattice_energy[lattice_index][random_index] - \
+                       self.lattice[lattice_index][random_index] * mu
+            else:  # Pores
+                n2 = np.sum(self.lattice[1]) / self.lattice2_sites  # Mole fraction of nanopores
+                M2 = self.lattice2_sites
+                nano_term = (self.eps2 * M2 * n2) + (self.args.g2 * M2 * n2 * n2) + (self.args.g3 * M2 * (n2 * n2 * n2))
+                return nano_term - self.lattice[lattice_index][random_index] * mu
 
     def monte_carlo(self, mu):
         """

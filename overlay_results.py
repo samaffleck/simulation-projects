@@ -17,7 +17,8 @@ class DisplayResults:
     def display(self):
         cwd = os.getcwd()
         path = cwd + "/results"
-        dataframes = ["/Na_monte_carlo_results_tri9.csv"]
+        dataframes = ["/Na_monte_carlo_results_91eff520-d39e-11eb-bb5f-505bc2f6ccb0.csv"]
+        colours = ['black', 'darkred', 'darkmagenta', 'darkturquoise', 'saddelbrown']
 
         dfE = pd.read_csv(path + "/experimental_data.csv")  # grey line
 
@@ -34,6 +35,11 @@ class DisplayResults:
         # vertical shift on p.m. entropy for vibrational effect
         vibrational_shift = 0.0149  # eV K
         dfE["Entropy dS/dx"] = dfE["Entropy dS/dx"] - vibrational_shift
+
+        # Integrates the p.m. entropy
+        entropy_list_experimental = integrate.cumtrapz(dfE['Entropy dS/dx'], dfE['x_real'],
+                                                       initial=0)  # Contains the entropy values
+        dfE['Entropy'] = entropy_list_experimental
 
         # Calculates the analytical solution
         points = 1000
@@ -70,11 +76,13 @@ class DisplayResults:
         dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[1, 1], x='x_real', y='Enthalpy dH/dx')
         dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[1, 1], x='x', y='Enthalpy dH/dx')
 
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[2, 0], x='x_real', y='Entropy')
+
         dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[2, 1], x='x_real', y='secder enthalpy xreal')
         dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[2, 1], x='x', y='secder enthalpy x')
 
         # Iterate through all the data to be plotted
-        for df in dataframes:
+        for count, df in enumerate(dataframes):
             df1 = pd.read_csv(path + df)  # black line
 
             # Integrates the p.m. entropy
@@ -94,24 +102,24 @@ class DisplayResults:
             secder_enthalpy = np.gradient(pm_enthalpy, mole_fraction)
             df1['secder enthalpy'] = secder_enthalpy
 
-            ax1 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+            ax1 = df1.plot(linestyle='-', color=colours[count], lw=lw, marker='o', markeredgecolor=colours[count],
                            markersize=2, ax=axes[0, 0], x='Total mole fraction', y='adjusted voltage')
 
-            ax2 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+            ax2 = df1.plot(linestyle='-', color=colours[count], lw=lw, marker='o', markeredgecolor=colours[count],
                            markersize=2, ax=axes[0, 1], x='Total mole fraction', y='adjusted entropy')
 
             ax2.plot(x_pos, y_pos, linewidth=lw, color='red')  # Plots the ideal p.m. entropy
 
-            ax3 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+            ax3 = df1.plot(linestyle='-', color=colours[count], lw=lw, marker='o', markeredgecolor=colours[count],
                            markersize=2, ax=axes[1, 0], x='Chemical potential', y='adjusted dq/de')
 
-            ax4 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+            ax4 = df1.plot(linestyle='-', color=colours[count], lw=lw, marker='o', markeredgecolor=colours[count],
                            markersize=2, ax=axes[1, 1], x='Total mole fraction', y='adjusted enthalpy')
 
-            ax5 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+            ax5 = df1.plot(linestyle='-', color=colours[count], lw=lw, marker='o', markeredgecolor=colours[count],
                            markersize=3, ax=axes[2, 1], x='Total mole fraction', y='secder enthalpy')
 
-            ax6 = df1.plot(linestyle='-', color='black', lw=lw, marker='o', markeredgecolor='black',
+            ax6 = df1.plot(linestyle='-', color=colours[count], lw=lw, marker='o', markeredgecolor=colours[count],
                            markersize=3, ax=axes[2, 0], x='Total mole fraction', y='Entropy')
 
             ax6.plot(s_x, s_y, linewidth=lw, color='red')  # Plots the entropy.
@@ -144,7 +152,7 @@ class DisplayResults:
             ax3.legend(['Experimental data', 'Monte Carlo data'])
             ax4.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
             ax5.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
-            ax6.legend(['Monte Carlo data', 'Analytical solution'])
+            ax6.legend(['Experimental data', 'Monte Carlo data', 'Analytical solution'])
 
         plt.show()
 
@@ -161,14 +169,33 @@ class DisplayResults:
         plt.show()
 
     def test_uniform(self):
-        s = np.random.uniform(-1, 0, 50000)
-        count, bins, ignored = plt.hist(s, 15, density=True)
-        plt.plot(bins, np.ones_like(bins), linewidth=2, color='r')
+        s = np.random.uniform(-1.35, 0.5, 5000)
+        plt.hist(s, 30, density=False)
+        plt.xlabel('Interlayer point energy [eV]')
+        plt.ylabel('Frequency')
+        plt.show()
+
+    def test_normal(self):
+        s = np.random.normal(-0.42, 0.55, 5000)
+        plt.hist(s, 30, density=False)
+        plt.xlabel('Interlayer point energy [eV]')
+        plt.ylabel('Frequency')
         plt.show()
 
     def test_triangular(self):
-        s = np.random.triangular(-1.3, -0.1, -0.1, 10000000)
-        plt.hist(s, bins=100, density=False)
+        s = np.random.triangular(-1.65, 0.08, 0.08, 5000)
+        plt.hist(s, bins=30, density=False)
+        plt.xlabel('Interlayer point energy [eV]')
+        plt.ylabel('Frequency')
+        plt.show()
+
+    def test_power(self):
+        a = 6  # shape
+        samples = 5000
+        max = -0.06
+        min = -3.3
+        s = np.random.power(a, samples) * -1 * (min - max) + min
+        plt.hist(s, bins=30, density=False)
         plt.xlabel('Interlayer point energy [eV]')
         plt.ylabel('Frequency')
         plt.show()
@@ -179,5 +206,8 @@ if __name__ == '__main__':
     dr.display()
 
     #dr.display_averaging()
+
     #dr.test_uniform()
     #dr.test_triangular()
+    #dr.test_power()
+    #dr.test_normal()

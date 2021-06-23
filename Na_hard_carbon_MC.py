@@ -31,7 +31,7 @@ class MonteCarlo:
         self.parser.add_argument('--eps2', type=float, metavar='',
                                  help='Point term for nanopores - priori heterogeneity in eV', default=-0.021718645)
         self.parser.add_argument('--g2', type=float, metavar='', help='g2 term', default=-0.046075307)
-        self.parser.add_argument('--g3', type=float, metavar='', help='g3 term', default=0.032394847)
+        self.parser.add_argument('--g3', type=float, metavar='', help='g3 term', default=0.03)
         self.parser.add_argument('--a', type=float, metavar='', help='a term', default=-0.684477326)
         self.parser.add_argument('--b', type=float, metavar='', help='b term', default=1.873973403)
         self.parser.add_argument('--c', type=float, metavar='', help='c term', default=1.686422347)
@@ -39,17 +39,23 @@ class MonteCarlo:
                                  help='Number of mcs before a sample is taken', default=200)
         self.parser.add_argument('--T', type=float, metavar='', help='Temperature', default=288)
         self.parser.add_argument('--eps1_max', type=float, metavar='', help='Maximum point value for interlayers (uniform)',
-                                 default=-0.12)
+                                 default=0.5)
         self.parser.add_argument('--eps1_min', type=float, metavar='', help='Minimum point value for interlayers (uniform)',
-                                 default=-1.05)
+                                 default=-1.35)
         self.parser.add_argument('--eps1_mean', type=float, metavar='', help='Mean value for interlayers (norm)',
-                                 default=-0.352)
+                                 default=-0.42)
         self.parser.add_argument('--eps1_sig', type=float, metavar='',
-                                 help='Standard deviation for the point values for interlayers (norm)', default=0.3)
+                                 help='Standard deviation for the point values for interlayers (norm)', default=0.55)
         self.parser.add_argument('--eps1_low', type=float, metavar='',
                                  help='Most negative interlayer energy (tri)', default=-1.65)
         self.parser.add_argument('--eps1_high', type=float, metavar='',
                                  help='Most positive interlayer energy (tri)', default=0.08)
+        self.parser.add_argument('--eps1_power_low', type=float, metavar='',
+                                 help='Most negative interlayer energy (power)', default=-3.3)
+        self.parser.add_argument('--eps1_power_high', type=float, metavar='',
+                                 help='Most positive interlayer energy (power)', default=-0.06)
+        self.parser.add_argument('--eps1_power_a', type=float, metavar='',
+                                 help='Power constant for power distribution', default=6)
         self.parser.add_argument('--mu_list', type=float, nargs='+', metavar='',
                                  help='List of chemical potentials to loop through',
                                  default=[-1.6, -1.5, -1.4, -1.35, -1.3, -1.25, -1.2, -1.16, -1.12, -1.08, -1.04, -1.0, -0.96, -0.88, -0.80, -0.72, -0.64,
@@ -69,9 +75,9 @@ class MonteCarlo:
         self.eps2 = self.args.eps2  # Constant point value for the nanopores.
 
         # Constants for the power distribution.
-        self.a = 10
-        self.minp = -3
-        self.maxp = -0.377
+        self.a = self.args.eps1_power_a
+        self.minp = self.args.eps1_power_low
+        self.maxp = self.args.eps1_power_high
 
         self.lattice1_sites = int(self.args.sites * self.args.l)  # Number of sites in the interlayers.
         self.lattice2_sites = self.args.sites - self.lattice1_sites  # Number of sites in the nanopores.
@@ -128,8 +134,9 @@ class MonteCarlo:
                                                                "dq/de",
                                                                "Partial molar enthalpy"])
 
-        # Integrate p.m. entropy to get the entropy.
-        entropy_list = integrate.cumtrapz(results_array[:, 4], results_array[:, 2], initial=0)
+        # Integrates the p.m. entropy
+        entropy_list = integrate.cumtrapz(results_df['Partial molar entropy'], results_df['Total mole fraction'],
+                                          initial=0)  # Contains the entropy values
         results_df['Entropy'] = entropy_list
 
         # Only used when we want to record the fluctuations in U and N (Rare).
@@ -293,16 +300,21 @@ class MonteCarlo:
             if lattice_index == 0:  # interlayers
                 N1 = np.sum(self.lattice[0])  # Number of filled interlayer sites
                 n1 = N1/self.lattice1_sites  # Mole fraction of interlayers
-                eps1 = self.args.eps1 + self.args.a * np.exp(-self.args.b*n1**self.args.c)
+                eps1 = self.args.eps1 + self.args.a * math.exp(-self.args.b*n1**self.args.c)
                 return eps1 * N1 - self.lattice[lattice_index][random_index] * mu
             else:
-                N2 = np.sum(self.lattice[1])  # Number of filled nanopores
-                n2 = N2/self.lattice2_sites  # Mole fraction of nanopores
+                n2 = np.sum(self.lattice[1])/self.lattice2_sites  # Mole fraction of nanopores
                 M2 = self.lattice2_sites
-                nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
+                nano_term = n2 * ((self.eps2 * M2) + (self.args.g2 * M2 * n2) + (self.args.g3 * M2 * (n2 * n2)))
                 return nano_term - self.lattice[lattice_index][random_index] * mu
         else:
-            return self.lattice[lattice_index][random_index] * self.lattice_energy[lattice_index][random_index] - self.lattice[lattice_index][random_index] * mu
+            N2 = np.sum(self.lattice[1])  # Number of filled nanopores
+            n2 = N2 / self.lattice2_sites  # Mole fraction of nanopores
+            M2 = self.lattice2_sites
+            nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
+
+            return np.sum(np.multiply(self.lattice[0], self.lattice_energy[0])) + nano_term - mu * (np.sum(self.lattice[0]) + N2)
+
 
     def monte_carlo(self, mu):
         """
@@ -333,7 +345,7 @@ class MonteCarlo:
             rand_p = random.random()
             p = math.exp(-delta_h / (self.kb * self.T))
             if rand_p > p:
-                # Perform a swap - Overall we didn't swap the occupation number.
+                # Perform a swap - Overall we didn't swap the occupation number for this case.
                 if self.lattice[lattice_index][random_index] == 0:
                     self.lattice[lattice_index][random_index] = 1
                 else:
