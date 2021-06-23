@@ -282,18 +282,15 @@ class MonteCarlo:
             M2 = self.lattice2_sites
 
             nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
-            eps1 = self.args.eps1 + self.args.a * np.exp(-self.args.b*n1**self.args.c)
+            eps1 = self.args.eps1 + self.args.a * math.exp(-self.args.b*n1**self.args.c)
             return eps1 * N1 + nano_term
         else:
-            #l1_u = np.sum(np.multiply(self.lattice[0], self.lattice_energy[0]))
-            #l2_u = np.sum(np.multiply(self.lattice[1], self.lattice_energy[1]))
-            #u = l1_u + l2_u
-            u = 0
-            for occ, eps in zip(self.lattice[0], self.lattice_energy[0]):
-                u += occ * eps
-            for occ, eps in zip(self.lattice[1], self.lattice_energy[1]):
-                u += occ * eps
-            return u
+            N2 = np.sum(self.lattice[1])  # Number of filled nanopores
+            n2 = N2 / self.lattice2_sites  # Mole fraction of nanopores
+            M2 = self.lattice2_sites
+            nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
+
+            return np.sum(np.multiply(self.lattice[0], self.lattice_energy[0])) + nano_term
 
     def site_h(self, mu, lattice_index, random_index):
         if self.args.distribution == 4:
@@ -308,13 +305,21 @@ class MonteCarlo:
                 nano_term = n2 * ((self.eps2 * M2) + (self.args.g2 * M2 * n2) + (self.args.g3 * M2 * (n2 * n2)))
                 return nano_term - self.lattice[lattice_index][random_index] * mu
         else:
-            N2 = np.sum(self.lattice[1])  # Number of filled nanopores
-            n2 = N2 / self.lattice2_sites  # Mole fraction of nanopores
-            M2 = self.lattice2_sites
-            nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
+            if lattice_index == 0:  # interlayers
+                return self.lattice[lattice_index][random_index] * self.lattice_energy[lattice_index][random_index] - \
+                       self.lattice[lattice_index][random_index] * mu
+            else:  # Pores
+                n2 = np.sum(self.lattice[1]) / self.lattice2_sites  # Mole fraction of nanopores
+                M2 = self.lattice2_sites
+                nano_term = (self.eps2 * M2 * n2) + (self.args.g2 * M2 * n2 * n2) + (self.args.g3 * M2 * (n2 * n2 * n2))
+                return nano_term - self.lattice[lattice_index][random_index] * mu
+        #else:
+        #    N2 = np.sum(self.lattice[1])  # Number of filled nanopores
+        #    n2 = N2 / self.lattice2_sites  # Mole fraction of nanopores
+        #    M2 = self.lattice2_sites
+        #    nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
 
-            return np.sum(np.multiply(self.lattice[0], self.lattice_energy[0])) + nano_term - mu * (np.sum(self.lattice[0]) + N2)
-
+        #    return np.sum(np.multiply(self.lattice[0], self.lattice_energy[0])) + nano_term - mu * (np.sum(self.lattice[0]) + N2)
 
     def monte_carlo(self, mu):
         """
