@@ -17,27 +17,28 @@ class DisplayResults:
     def display(self):
         cwd = os.getcwd()
         path = cwd + "/results"
-        dataframes = ["/Na_monte_carlo_results_exp_9.csv"]
+        dataframes = ["/Na_monte_carlo_results_exp_g=0.csv"]
         colours = ['black', 'darkred', 'darkmagenta', 'darkturquoise', 'saddelbrown']
 
         dfE = pd.read_csv(path + "/experimental_data.csv")
 
         # Rescale the x-axis of the experimental data.
-        ratio_of_capacities = 272.4 / 338.313338
-        dfE["x_real"] = ratio_of_capacities * dfE["x"]
+        ratio_of_capacities = 272.4 / 338.313338  # experimental maximum capacity / theoretical maximum capacity
+        dfE["x_theo"] = ratio_of_capacities * dfE["x"]
+        # 'x' is the experimental x and 'x_theo' is the theoretical x.
 
         # Second derivative of enthalpy for experimental data.
         secder_enthalpy_experimental_x = np.gradient(np.array(dfE['Enthalpy dH/dx']), np.array(dfE['x']))
-        secder_enthalpy_experimental_xreal = np.gradient(np.array(dfE['Enthalpy dH/dx']), np.array(dfE['x_real']))
+        secder_enthalpy_experimental_xreal = np.gradient(np.array(dfE['Enthalpy dH/dx']), np.array(dfE['x_theo']))
         dfE['secder enthalpy x'] = secder_enthalpy_experimental_x
         dfE['secder enthalpy xreal'] = secder_enthalpy_experimental_xreal
 
         # vertical shift on p.m. entropy for vibrational effect
-        vibrational_shift = 0.0134  # eV K
-        dfE["Entropy dS/dx"] = (dfE["Entropy dS/dx"]) - vibrational_shift * ratio_of_capacities
+        vibrational_shift = 0.0108  # 0.0134  # eV K
+        dfE["Entropy dS/dx"] = (dfE["Entropy dS/dx"]) - vibrational_shift
 
         # Integrates the p.m. entropy
-        entropy_list_experimental = integrate.cumtrapz(dfE['Entropy dS/dx'], dfE['x_real'],
+        entropy_list_experimental = integrate.cumtrapz(dfE['Entropy dS/dx'], dfE['x'],
                                                        initial=0)  # Contains the entropy values
         dfE['Entropy'] = entropy_list_experimental
 
@@ -60,25 +61,31 @@ class DisplayResults:
                         (1 - l) / l))) * T
                 y_pos[index] = T * R * (np.log(x / l - 1) - np.log(1 / l - x / l))
 
+        #  Calculates the solid state entropy
+        x_ent = np.linspace(0, 1, points)
+        y_ent = np.linspace(0, 1, points)
+        for index, x in enumerate(x_ent):
+            y_ent[index] = T * R * (x * np.log(x) + (1-x) * np.log(1-x))
+
         # Create plot and formats
         fig, axes = plt.subplots(nrows=3, ncols=2, constrained_layout=True)
         plt.rc('legend', fontsize=8)
         lw = 0.7  # Line width
 
-        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[0, 0], x='x_real', y='OCV')
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[0, 0], x='x_theo', y='OCV')
         dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[0, 0], x='x', y='OCV')
 
-        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[0, 1], x='x_real', y='Entropy dS/dx')
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[0, 1], x='x_theo', y='Entropy dS/dx')
         dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[0, 1], x='x', y='Entropy dS/dx')
 
         dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[1, 0], x='OCV', y='dQdV')
 
-        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[1, 1], x='x_real', y='Enthalpy dH/dx')
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[1, 1], x='x_theo', y='Enthalpy dH/dx')
         dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[1, 1], x='x', y='Enthalpy dH/dx')
 
-        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[2, 0], x='x_real', y='Entropy')
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[2, 0], x='x_theo', y='Entropy')
 
-        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[2, 1], x='x_real', y='secder enthalpy xreal')
+        dfE.plot(linestyle='-', color='darkgreen', lw=lw, ax=axes[2, 1], x='x_theo', y='secder enthalpy xreal')
         dfE.plot(linestyle='-', color='darkblue', lw=lw, ax=axes[2, 1], x='x', y='secder enthalpy x')
 
         # Iterate through all the data to be plotted
@@ -122,7 +129,8 @@ class DisplayResults:
             ax6 = df1.plot(linestyle='-', color=colours[count], lw=lw, marker='o', markeredgecolor=colours[count],
                            markersize=3, ax=axes[2, 0], x='Total mole fraction', y='Entropy')
 
-            ax6.plot(s_x, s_y, linewidth=lw, color='red')  # Plots the entropy.
+            ax6.plot(s_x, s_y, linewidth=lw, color='red')  # Plots the entropy for l=0.32...
+            ax6.plot(x_ent, y_ent, linewidth=lw, color='grey')  # Plots the entropy for solid state solution.
 
             ax1.set_xlim([0, 1])
             ax2.set_xlim([0, 1])
@@ -140,19 +148,19 @@ class DisplayResults:
 
             ax1.set_ylabel('Voltage $[V]$')
             ax2.set_ylabel('dS/dx $[eV K/site]$')
-            ax3.set_ylabel('dq/de $\mathregular{eV^{-1}}$')
+            ax3.set_ylabel('dq/de [$\mathregular{eV^{-1}}$]')
             ax4.set_ylabel('$dH/dx$ $[eV/site]$')
             ax5.set_ylabel('$d^2H/dx^2$ $[eV/site]$')
             ax6.set_ylabel('S $[eV K/site]$')
 
-            # fig.suptitle('')
             ax1.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
             ax2.legend(
                 ['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data',  'Analytical solution'])
             ax3.legend(['Experimental data', 'Monte Carlo data'])
             ax4.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
             ax5.legend(['Experimental data (Adjusted x)', 'Raw experimental data', 'Monte Carlo data'])
-            ax6.legend(['Experimental data', 'Monte Carlo data', 'Analytical solution'])
+            ax6.legend(loc='upper center', bbox_to_anchor=(0.5, 0))
+            ax6.legend(['Experimental data', 'Monte Carlo data', 'Analytical solution', 'Solid state solution'])
 
         plt.show()
 
@@ -161,7 +169,7 @@ class DisplayResults:
         path = cwd + "/results"
         df1 = pd.read_csv(path + "/average_U.csv")  # black line
         df2 = pd.read_csv(path + "/average_N.csv")  # green line
-        chem = 15  # from 0 to 35
+        chem = 25  # from 0 to 35
 
         s1 = df1.iloc[chem]
         s1.plot()
