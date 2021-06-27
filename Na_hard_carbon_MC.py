@@ -39,13 +39,13 @@ class MonteCarlo:
                                  help='Number of mcs before a sample is taken', default=200)
         self.parser.add_argument('--T', type=float, metavar='', help='Temperature', default=288)
         self.parser.add_argument('--eps1_max', type=float, metavar='', help='Maximum point value for interlayers (uniform)',
-                                 default=0.5)
+                                 default=-0.1)
         self.parser.add_argument('--eps1_min', type=float, metavar='', help='Minimum point value for interlayers (uniform)',
                                  default=-1.35)
         self.parser.add_argument('--eps1_mean', type=float, metavar='', help='Mean value for interlayers (norm)',
-                                 default=-0.42)
+                                 default=-0.7)
         self.parser.add_argument('--eps1_sig', type=float, metavar='',
-                                 help='Standard deviation for the point values for interlayers (norm)', default=0.55)
+                                 help='Standard deviation for the point values for interlayers (norm)', default=0.45)
         self.parser.add_argument('--eps1_low', type=float, metavar='',
                                  help='Most negative interlayer energy (tri)', default=-1.65)
         self.parser.add_argument('--eps1_high', type=float, metavar='',
@@ -78,6 +78,11 @@ class MonteCarlo:
         self.a = self.args.eps1_power_a
         self.minp = self.args.eps1_power_low
         self.maxp = self.args.eps1_power_high
+
+        if self.args.distribution == 0:
+            self.args.l = 0.25  # This is due to the nature of the uniform distribution where the optimum L differs.
+        if self.args.distribution == 0:
+            self.args.l = 0.27  # This is due to the nature of the normal distribution where the optimum L differs.
 
         self.lattice1_sites = int(self.args.sites * self.args.l)  # Number of sites in the interlayers.
         self.lattice2_sites = self.args.sites - self.lattice1_sites  # Number of sites in the nanopores.
@@ -144,12 +149,12 @@ class MonteCarlo:
         avrU_df = pd.DataFrame(data=avrU_data)
 
         uid = str(uuid.uuid1())  # Creates a unique code.
-        cwd = os.getcwd()
+        cwd = os.getcwd()  # Gets the current working directory
         path = cwd + "/results"
         Path(path).mkdir(parents=True, exist_ok=True)  # Create a folder if it doesn't already exist.
         results_df.to_csv(path + "/Na_monte_carlo_results_" + uid + ".csv", index=False)
-        #avrU_df.to_csv(path + "/average_U.csv")
-        #avrN_df.to_csv(path + "/average_N.csv")
+        # avrU_df.to_csv(path + "/average_U.csv")
+        # avrN_df.to_csv(path + "/average_N.csv")
 
         dfE = pd.read_csv(path + "/experimental_data.csv")  # gets experimental data
 
@@ -229,19 +234,19 @@ class MonteCarlo:
         ax5.set_xlim([0, 1])
         ax6.set_xlim([0, 1])
 
-        ax1.set_xlabel('Na content, x')
-        ax2.set_xlabel('Na content, x')
-        ax3.set_xlabel('Voltage V')
-        ax4.set_xlabel('Na content, x')
-        ax5.set_xlabel('Na content, x')
-        ax6.set_xlabel('Na content, x')
+        ax1.set_xlabel('Na content $[x]$')
+        ax2.set_xlabel('Na content $[x]$')
+        ax3.set_xlabel('Voltage $[V]$')
+        ax4.set_xlabel('Na content $[x]$')
+        ax5.set_xlabel('Na content $[x]$')
+        ax6.set_xlabel('Na content $[x]$')
 
-        ax1.set_ylabel('Voltage [V]')
-        ax2.set_ylabel('dS/dx [eV/Na site]')
-        ax3.set_ylabel('dq/de')
-        ax4.set_ylabel('Partial molar enthalpy [eV/Na site]')
-        ax5.set_ylabel('Na content, x')
-        ax6.set_ylabel('Entropy (S) [eV/Na site]')
+        ax1.set_ylabel('Voltage $[V]$')
+        ax2.set_ylabel('dS/dx $[eV K/site]$')
+        ax3.set_ylabel('dq/de [$\mathregular{eV^{-1}}$]')
+        ax4.set_ylabel('$dH/dx$ $[eV/site]$')
+        ax5.set_ylabel('$d^2H/dx^2$ $[eV/site]$')
+        ax6.set_ylabel('S $[eV K/site]$')
 
         if self.args.distribution == 0:
             plt.suptitle(
@@ -267,7 +272,7 @@ class MonteCarlo:
         manager = plt.get_current_fig_manager()
         manager.resize(*manager.window.maxsize())
         # fig_path = cwd + "/Na_plot_results.png"
-        #plt.savefig(path + "/Na_monte_carlo_plot_" + uid + ".png")
+        # plt.savefig(path + "/Na_monte_carlo_plot_" + uid + ".png")
         plt.show()
 
     def calculate_u(self):
@@ -313,13 +318,6 @@ class MonteCarlo:
                 M2 = self.lattice2_sites
                 nano_term = (self.eps2 * M2 * n2) + (self.args.g2 * M2 * n2 * n2) + (self.args.g3 * M2 * (n2 * n2 * n2))
                 return nano_term - self.lattice[lattice_index][random_index] * mu
-        #else:
-        #    N2 = np.sum(self.lattice[1])  # Number of filled nanopores
-        #    n2 = N2 / self.lattice2_sites  # Mole fraction of nanopores
-        #    M2 = self.lattice2_sites
-        #    nano_term = (self.eps2 * n2 * M2) + (self.args.g2 * M2 * (n2 ** 2)) + (self.args.g3 * M2 * (n2 ** 3))
-
-        #    return np.sum(np.multiply(self.lattice[0], self.lattice_energy[0])) + nano_term - mu * (np.sum(self.lattice[0]) + N2)
 
     def monte_carlo(self, mu):
         """
