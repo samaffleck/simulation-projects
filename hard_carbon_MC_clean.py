@@ -37,13 +37,13 @@ class MonteCarlo:
                                  help='Number of mcs before a sample is taken', default=200)
         self.parser.add_argument('--T', type=float, metavar='', help='Temperature', default=288)
         self.parser.add_argument('--eps1_max', type=float, metavar='', help='Maximum point value for interlayers (uniform)',
-                                 default=0.5)
+                                 default=-0.1)
         self.parser.add_argument('--eps1_min', type=float, metavar='', help='Minimum point value for interlayers (uniform)',
                                  default=-1.35)
         self.parser.add_argument('--eps1_mean', type=float, metavar='', help='Mean value for interlayers (norm)',
-                                 default=-0.42)
+                                 default=-0.7)
         self.parser.add_argument('--eps1_sig', type=float, metavar='',
-                                 help='Standard deviation for the point values for interlayers (norm)', default=0.55)
+                                 help='Standard deviation for the point values for interlayers (norm)', default=0.45)
         self.parser.add_argument('--eps1_low', type=float, metavar='',
                                  help='Most negative interlayer energy (tri)', default=-1.65)
         self.parser.add_argument('--eps1_high', type=float, metavar='',
@@ -79,6 +79,11 @@ class MonteCarlo:
         self.a = self.args.eps1_power_a
         self.minp = self.args.eps1_power_low
         self.maxp = self.args.eps1_power_high
+
+        if self.args.distribution == 0:
+            self.args.l = 0.25  # This is due to the nature of the uniform distribution where the optimum L differs.
+        if self.args.distribution == 0:
+            self.args.l = 0.27  # This is due to the nature of the normal distribution where the optimum L differs.
 
         self.lattice1_sites = int(self.args.sites * self.args.l)  # Number of sites in the interlayers.
         self.lattice2_sites = self.args.sites - self.lattice1_sites  # Number of sites in the nanopores.
