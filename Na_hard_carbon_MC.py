@@ -139,6 +139,9 @@ class MonteCarlo:
                                                                "dq/de",
                                                                "Partial molar enthalpy"])
 
+        results_df = results_df.replace(0, pd.np.nan).dropna(axis=0, how='all')  # For the rows with all '0' entries they are replaced with 'nan' and then these rows are dropped.
+        results_df = results_df.replace(pd.np.nan, 0)  # As some legitimate 0 entries such as 0 volts we flip back the remaining from 'nan' to 0.
+
         # Integrates the p.m. entropy
         entropy_list = integrate.cumtrapz(results_df['Partial molar entropy'], results_df['Total mole fraction'],
                                           initial=0)  # Contains the entropy values
@@ -412,15 +415,16 @@ class MonteCarlo:
                   mean_x)
             print("--------")
 
-            delta_entropy = (cov_un / variance) - mu
-            results_array[row_count, 0] = mean_x1
-            results_array[row_count, 1] = mean_x2
-            results_array[row_count, 2] = mean_x
-            results_array[row_count, 3] = mu * -1
-            results_array[row_count, 4] = delta_entropy  # Partial molar entropy
-            results_array[row_count, 5] = variance / (self.kb * self.T * self.args.sites)  # dq/de
-            results_array[row_count, 6] = cov_un / variance  # Partial molar enthalpy
-            row_count += 1
+            if variance != 0:
+                delta_entropy = (cov_un / variance) - mu
+                results_array[row_count, 0] = mean_x1
+                results_array[row_count, 1] = mean_x2
+                results_array[row_count, 2] = mean_x
+                results_array[row_count, 3] = mu * -1
+                results_array[row_count, 4] = delta_entropy  # Partial molar entropy
+                results_array[row_count, 5] = variance / (self.kb * self.T * self.args.sites)  # dq/de
+                results_array[row_count, 6] = cov_un / variance  # Partial molar enthalpy
+                row_count += 1
 
         self.plot_results(results_array, avrN_array, avrU_array)
 

@@ -272,15 +272,16 @@ class MonteCarlo:
                   mean_x)
             print("--------")
 
-            delta_entropy = (cov_un / variance) - mu
-            results_array[row_count, 0] = mean_x1
-            results_array[row_count, 1] = mean_x2
-            results_array[row_count, 2] = mean_x
-            results_array[row_count, 3] = mu * -1
-            results_array[row_count, 4] = delta_entropy  # Partial molar entropy
-            results_array[row_count, 5] = variance / (self.kb * self.T * self.args.sites)  # dq/de
-            results_array[row_count, 6] = cov_un / variance  # Partial molar enthalpy
-            row_count += 1
+            if variance != 0:
+                delta_entropy = (cov_un / variance) - mu
+                results_array[row_count, 0] = mean_x1
+                results_array[row_count, 1] = mean_x2
+                results_array[row_count, 2] = mean_x
+                results_array[row_count, 3] = mu * -1
+                results_array[row_count, 4] = delta_entropy  # Partial molar entropy
+                results_array[row_count, 5] = variance / (self.kb * self.T * self.args.sites)  # dq/de
+                results_array[row_count, 6] = cov_un / variance  # Partial molar enthalpy
+                row_count += 1
 
         self.plot_results(results_array)
 
