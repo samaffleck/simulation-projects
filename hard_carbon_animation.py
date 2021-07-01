@@ -1,3 +1,7 @@
+"""
+This script is an idea for how we could visualise the sodium insertion in hard carbon.
+"""
+
 import pygame
 import random
 import time

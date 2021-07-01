@@ -342,7 +342,7 @@ class MonteCarlo:
 
         cwd = os.getcwd()
         path = cwd + "/monte_carlo_results.csv"
-        results_dataframe.to_csv(path, index=False)
+        #results_dataframe.to_csv(path, index=False)
 
         fig, axes = plt.subplots(nrows=2, ncols=2, constrained_layout=True)
 
@@ -377,7 +377,7 @@ class MonteCarlo:
         ax3.set_ylabel('Sublattice occupancy')
         ax4.set_ylabel('S [kJ/mol K]')
 
-        fig.savefig(cwd + "/results_plot.png")
+        #fig.savefig(cwd + "/results_plot.png")
         plt.show()
 
 
